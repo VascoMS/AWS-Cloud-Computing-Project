@@ -28,7 +28,7 @@ public class FifteenPuzzleHandler implements HttpHandler, RequestHandler<Map<Str
         sb.append("\nInitial (Shuffled) Board:").append("\n");
         sb.append(puzzle.getData()).append("\n");
 
-        List<FifteenPuzzle> solution = puzzle.aStarSolve();
+        List<FifteenPuzzle> solution = puzzle.idaStarSolve();
 
         if (solution != null && !solution.isEmpty()) {
             sb.append("\nFinal (Solved) Board:").append("\n");
@@ -98,7 +98,7 @@ public class FifteenPuzzleHandler implements HttpHandler, RequestHandler<Map<Str
         System.out.println("\nInitial (Shuffled) Board:");
         System.out.println(puzzle.getData());
 
-        List<FifteenPuzzle> solution = puzzle.aStarSolve();
+        List<FifteenPuzzle> solution = puzzle.idaStarSolve();
 
         if (solution != null && !solution.isEmpty()) {
             System.out.println("\nFinal (Solved) Board:");
