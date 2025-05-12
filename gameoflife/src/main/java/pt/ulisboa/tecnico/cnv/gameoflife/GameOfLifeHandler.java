@@ -1,7 +1,5 @@
 package pt.ulisboa.tecnico.cnv.gameoflife;
 
-import java.awt.image.BufferedImage;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpHandler;
@@ -14,14 +12,11 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
-
-import javax.imageio.ImageIO;
 
 public class GameOfLifeHandler implements HttpHandler, RequestHandler<Map<String, String>, String> {
 
@@ -143,47 +138,43 @@ public class GameOfLifeHandler implements HttpHandler, RequestHandler<Map<String
     /**
      * For debugging use - to run from CLI.
      */
-    public static void main(String[] args) throws Exception {
-        byte[] data = {
-                0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
-                1, 1, 1, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        };
-        int width = 10;
-        int height = 10;
-        int iterations = 200;
-        if (args.length > 0) {
-            // It's possible to provide a monochrome bitmap (.bmp) as an input map.
-            // Black pixels are "alive" and white pixels are "dead".
-            BufferedImage bi = ImageIO.read(new File(args[0]));
-            height = bi.getHeight();
-            width = bi.getWidth();
-            data = new byte[height * width];
-            int[] arr = new int[1];
-            for (int row = 0; row < height; ++row) {
-                for (int col = 0; col < width; ++col) {
-                    // In source BufferedImage: 0 - black, 1 - white. So we need to invert it.
-                    // Get pixel value, get the only color channel (due to monochrome), XOR with 1 to invert the value.
-                    data[row * width + col] = (byte) (bi.getData().getPixel(col, row, arr)[0] ^ 1);
-                }
-            }
-            System.out.println(Arrays.toString(data));
+    public static void main(String[] args) {
+        if (args.length < 1) {
+            System.out.println("Usage: java pt.ulisboa.tecnico.cnv.gameoflife.GameOfLifeHandler <map_json_filename> [<iterations>]");
+            return;
         }
-        GameOfLife gol = new GameOfLife(width, height, data);
+        String jsonFilename = args[0];
+
+        GameOfLifeRequest input;
+        try {
+            input = MAPPER.readValue(new File(jsonFilename), GameOfLifeRequest.class);
+        } catch (IOException e) {
+            System.err.println("Provide a valid JSON file as input. It should contain a 2D map of integers (field \"map\") and a number of iterations (field \"iterations\").");
+            System.exit(1);
+            return; // redundant but needed to avoid null-check warning.
+        }
+
+        int iterations = 0;
+        try {
+            // Command-line-provided iterations argument overrides the value from JSON.
+            iterations = (args.length > 1) ? Integer.parseInt(args[1]) : input.iterations;
+        } catch (NumberFormatException e) {
+            System.err.println("The optional \"iterations\" argument should be a valid integer value.");
+            System.exit(1);
+        }
+
+        int rows = input.map.length;
+        int cols = (rows > 0) ? input.map[0].length : 0;
+        byte[] map = convertMapToByteArray(input.map, rows, cols);
+
+        GameOfLife gol = new GameOfLife(cols, rows, map);
         gol.playCLI(iterations);
     }
 
     /**
      * Util method to convert a 2d int array to a byte array.
      */
-    private byte[] convertMapToByteArray(int[][] map, int rows, int cols) {
+    private static byte[] convertMapToByteArray(int[][] map, int rows, int cols) {
         byte[] byteArray = new byte[rows * cols];
 
         int index = 0;

@@ -12,5 +12,27 @@ This project contains Conway's Game of Life functionality.
 To run Game of Life locally in CLI, execute this command:
 
 ```
-java -cp target/gameoflife-1.0.0-SNAPSHOT-jar-with-dependencies.jar pt.ulisboa.tecnico.cnv.gameoflife.GameOfLifeHandler
+java -cp target/gameoflife-1.0.0-SNAPSHOT-jar-with-dependencies.jar pt.ulisboa.tecnico.cnv.gameoflife.GameOfLifeHandler <map-json-filename> [<iterations>]
 ```
+
+The JSON file should have the structure as in the example below:
+
+```json
+{
+  "map": [
+    [0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+    [1, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+    [0, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  ],
+  "iterations" : 200
+}
+```
+
+In case the second argument (`iterations`) is provided, it will override the value from the JSON file. It should be a valid integer value. This argument is optional.
