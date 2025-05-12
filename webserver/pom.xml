@@ -11,11 +11,6 @@
   </properties>
 
   <dependencies>
-    <dependency>
-		  <groupId>pt.ulisboa.tecnico.cnv</groupId>
-		  <artifactId>raytracer</artifactId>
-		  <version>1.0.0-SNAPSHOT</version>
-	  </dependency>
       <dependency>
           <groupId>pt.ulisboa.tecnico.cnv</groupId>
           <artifactId>gameoflife</artifactId>
