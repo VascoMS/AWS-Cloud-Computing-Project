@@ -8,6 +8,8 @@ import java.net.URI;
 
 public class RootHandler implements HttpHandler {
 
+    private final String HELLO_MSG = "Default Web Server<br>";
+
     @Override
     public void handle(HttpExchange he) throws IOException {
         // Handling CORS
@@ -22,6 +24,8 @@ public class RootHandler implements HttpHandler {
         // parse request
         URI requestedUri = he.getRequestURI();
         String query = requestedUri.getRawQuery();
+        if (query == null)
+            query = HELLO_MSG;
         System.out.println(query);
 
         he.sendResponseHeaders(200, 0);
