@@ -5,15 +5,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpExchange;
 
-import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
+import java.net.URI;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
@@ -23,28 +20,28 @@ public class GameOfLifeHandler implements HttpHandler, RequestHandler<Map<String
     private final static ObjectMapper MAPPER = new ObjectMapper();
 
     /**
-     * Input (request) model.
+     * Input map model.
      */
-    private static class GameOfLifeRequest {
-        public int iterations;
+    private static class GameOfLifeInput {
         public int[][] map;
 
-        public GameOfLifeRequest(int iterations, int[][] map) {
-            this.iterations = iterations;
+        public GameOfLifeInput(int[][] map) {
             this.map = map;
         }
 
-        public GameOfLifeRequest() {}
+        public GameOfLifeInput() {}
     }
 
     /**
      * Output (response) model.
      */
     private static class GameOfLifeResponse {
-        public int[][] map;
+        public int[][] inputMap;
+        public int[][] outputMap;
 
-        public GameOfLifeResponse(int[][] map) {
-            this.map = map;
+        public GameOfLifeResponse(int[][] inputMap, int[][] outputMap) {
+            this.inputMap = inputMap;
+            this.outputMap = outputMap;
         }
 
         public GameOfLifeResponse() {}
@@ -53,7 +50,11 @@ public class GameOfLifeHandler implements HttpHandler, RequestHandler<Map<String
     /**
      * Game entrypoint.
      */
-    private String handleWorkload(byte[] map, int width, int height, int iterations) {
+    private String handleWorkload(int[][] inputMap, int iterations) {
+        int height = inputMap.length;
+        int width = (height > 0) ? inputMap[0].length : 0;
+        byte[] map = convertMapToByteArray(inputMap, height, width);
+
         GameOfLife gol = new GameOfLife(width, height, map);
         gol.play(iterations);
         byte[] resultData = gol.getData();
@@ -64,7 +65,7 @@ public class GameOfLifeHandler implements HttpHandler, RequestHandler<Map<String
                 resultMap[i][j] = Byte.toUnsignedInt(resultData[i * width + j]);
             }
         }
-        GameOfLifeResponse response = new GameOfLifeResponse(resultMap);
+        GameOfLifeResponse response = new GameOfLifeResponse(inputMap, resultMap);
 
         try {
             return MAPPER.writeValueAsString(response);
@@ -89,15 +90,19 @@ public class GameOfLifeHandler implements HttpHandler, RequestHandler<Map<String
             return;
         }
 
-        InputStream requestBody = he.getRequestBody();
-        String jsonBody = new BufferedReader(new InputStreamReader(requestBody, StandardCharsets.UTF_8))
-                .lines()
-                .collect(Collectors.joining("\n"));
+        // Parse request.
+        URI requestedUri = he.getRequestURI();
+        String query = requestedUri.getRawQuery();
+        Map<String, String> parameters = queryToMap(query);
 
-        GameOfLifeRequest request = null;
-        try {
-            request = MAPPER.readValue(jsonBody, GameOfLifeRequest.class);
-        } catch (JsonProcessingException e) {
+        int iterations = Integer.parseInt(parameters.get("iterations"));
+        String mapFilename = parameters.get("mapFilename");
+
+        int[][] map;
+        try (InputStream mapFileInputStream = getClass().getClassLoader().getResourceAsStream(mapFilename)) {
+            GameOfLifeInput request = MAPPER.readValue(mapFileInputStream, GameOfLifeInput.class);
+            map = request.map;
+        } catch (NullPointerException | JsonProcessingException e) {
             e.printStackTrace();
             String errorResponse = "{ \"error\":\"" + e.getMessage() + "\"}";
             he.sendResponseHeaders(400, errorResponse.length());
@@ -107,11 +112,7 @@ public class GameOfLifeHandler implements HttpHandler, RequestHandler<Map<String
             return;
         }
 
-        int rows = request.map.length;
-        int cols = (rows > 0) ? request.map[0].length : 0;
-        byte[] map = convertMapToByteArray(request.map, rows, cols);
-
-        String response = handleWorkload(map, cols, rows, request.iterations);
+        String response = handleWorkload(map, iterations);
 
         he.sendResponseHeaders(200, response.length());
         OutputStream os = he.getResponseBody();
@@ -125,56 +126,66 @@ public class GameOfLifeHandler implements HttpHandler, RequestHandler<Map<String
     @Override
     public String handleRequest(Map<String,String> event, Context context) {
         int iterations = Integer.parseInt(event.get("iterations"));
-        String jsonMap = event.get("map");
-        int[][] intMap = MAPPER.convertValue(jsonMap, int[][].class);
+        String mapFilename = event.get("mapFilename");
 
-        int rows = intMap.length;
-        int cols = (rows > 0) ? intMap[0].length : 0;
-        byte[] map = convertMapToByteArray(intMap, rows, cols);
+        int[][] map;
+        try (InputStream mapFileInputStream = getClass().getClassLoader().getResourceAsStream(mapFilename)) {
+            GameOfLifeInput request = MAPPER.readValue(mapFileInputStream, GameOfLifeInput.class);
+            map = request.map;
+        } catch (IOException | NullPointerException e) {
+            e.printStackTrace();
+            return "{ \"error\":\"" + e.getMessage() + "\"}";
+        }
 
-        return handleWorkload(map, cols, rows, iterations);
+        return handleWorkload(map, iterations);
     }
 
     /**
      * For debugging use - to run from CLI.
      */
     public static void main(String[] args) {
-        if (args.length < 1) {
-            System.out.println("Usage: java pt.ulisboa.tecnico.cnv.gameoflife.GameOfLifeHandler <map_json_filename> [<iterations>]");
+        if (args.length < 2) {
+            System.out.println("Usage: java pt.ulisboa.tecnico.cnv.gameoflife.GameOfLifeHandler <map_json_filename> <iterations>");
             return;
         }
-        String jsonFilename = args[0];
+        String mapFilename = args[0];
 
-        GameOfLifeRequest input;
-        try {
-            input = MAPPER.readValue(new File(jsonFilename), GameOfLifeRequest.class);
-        } catch (IOException e) {
-            System.err.println("Provide a valid JSON file as input. It should contain a 2D map of integers (field \"map\") and a number of iterations (field \"iterations\").");
+        int[][] intMap;
+        try (InputStream mapFileInputStream = GameOfLifeHandler.class.getClassLoader().getResourceAsStream(mapFilename)) {
+            GameOfLifeInput request = MAPPER.readValue(mapFileInputStream, GameOfLifeInput.class);
+            intMap = request.map;
+        } catch (IOException | NullPointerException e) {
+            e.printStackTrace();
             System.exit(1);
-            return; // redundant but needed to avoid null-check warning.
+            return;  // redundant but needed to avoid null-check warning.
         }
 
         int iterations = 0;
         try {
-            // Command-line-provided iterations argument overrides the value from JSON.
-            iterations = (args.length > 1) ? Integer.parseInt(args[1]) : input.iterations;
+            iterations = Integer.parseInt(args[1]);
         } catch (NumberFormatException e) {
-            System.err.println("The optional \"iterations\" argument should be a valid integer value.");
+            System.err.println("The \"iterations\" argument should be a valid integer value.");
             System.exit(1);
         }
 
-        int rows = input.map.length;
-        int cols = (rows > 0) ? input.map[0].length : 0;
-        byte[] map = convertMapToByteArray(input.map, rows, cols);
+        int rows = intMap.length;
+        int cols = (rows > 0) ? intMap[0].length : 0;
+        byte[] map = convertMapToByteArray(intMap, rows, cols);
 
         GameOfLife gol = new GameOfLife(cols, rows, map);
+
+        System.out.println("Initial State:");
+        System.out.println(gol.gridToString());
+
         // You can also use 'gol.playCLI()' for interactive simulation.
         gol.play(iterations);
+
+        System.out.println("Final State:");
         System.out.println(gol.gridToString());
     }
 
     /**
-     * Util method to convert a 2d int array to a byte array.
+     * Util method to convert a 2D int array to a byte array.
      */
     private static byte[] convertMapToByteArray(int[][] map, int rows, int cols) {
         byte[] byteArray = new byte[rows * cols];
@@ -187,5 +198,24 @@ public class GameOfLifeHandler implements HttpHandler, RequestHandler<Map<String
         }
 
         return byteArray;
+    }
+
+    /**
+     * Parse query string into a map.
+     */
+    private Map<String, String> queryToMap(String query) {
+        if (query == null) {
+            return null;
+        }
+        Map<String, String> result = new HashMap<>();
+        for (String param : query.split("&")) {
+            String[] entry = param.split("=");
+            if (entry.length > 1) {
+                result.put(entry[0], entry[1]);
+            } else {
+                result.put(entry[0], "");
+            }
+        }
+        return result;
     }
 }
