@@ -168,7 +168,9 @@ public class GameOfLifeHandler implements HttpHandler, RequestHandler<Map<String
         byte[] map = convertMapToByteArray(input.map, rows, cols);
 
         GameOfLife gol = new GameOfLife(cols, rows, map);
-        gol.playCLI(iterations);
+        // You can also use 'gol.playCLI()' for interactive simulation.
+        gol.play(iterations);
+        System.out.println(gol.gridToString());
     }
 
     /**

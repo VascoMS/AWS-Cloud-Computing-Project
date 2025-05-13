@@ -96,7 +96,7 @@ public class GameOfLife {
         }
     }
 
-    private String gridToString() {
+    public String gridToString() {
         StringBuilder sb = new StringBuilder();
         for (int row = 0; row < height; row++) {
             for (int col = 0; col < width; col++) {
