@@ -41,6 +41,11 @@
                 <descriptorRefs>
                     <descriptorRef>jar-with-dependencies</descriptorRef>
                 </descriptorRefs>
+                <!-- UNCOMMENT TO RUN WITH JAVASSIST
+                <archive>
+                    <manifestFile>../javassist/src/main/resources/META-INF/MANIFEST.MF</manifestFile>
+                </archive>
+                -->
             </configuration>
             <executions>
                 <execution>
