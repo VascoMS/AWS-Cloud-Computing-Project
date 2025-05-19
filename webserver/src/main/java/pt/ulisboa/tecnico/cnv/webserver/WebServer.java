@@ -16,5 +16,6 @@ public class WebServer {
         server.createContext("/fifteenpuzzle", new FifteenPuzzleHandler());
         server.createContext("/capturetheflag", new CaptureTheFlagHandler());
         server.start();
+        System.out.println("Web server started on port 8000!");
     }
 }

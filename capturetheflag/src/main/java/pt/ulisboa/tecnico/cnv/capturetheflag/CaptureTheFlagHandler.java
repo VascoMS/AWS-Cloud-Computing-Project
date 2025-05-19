@@ -12,6 +12,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import pt.ulisboa.tecnico.cnv.javassist.tools.ICount;
+import pt.ulisboa.tecnico.cnv.javassist.model.Statistics;
+
+import pt.ulisboa.tecnico.cnv.storage.StorageUtil;
+
 public class CaptureTheFlagHandler implements HttpHandler, RequestHandler<Map<String, String>, String> {
 
     /**
@@ -69,6 +74,10 @@ public class CaptureTheFlagHandler implements HttpHandler, RequestHandler<Map<St
         OutputStream os = he.getResponseBody();
         os.write(response.getBytes());
         os.close();
+
+        Statistics requestStatistics = ICount.getThreadStatistics();
+        StorageUtil.storeStatistics(parameters, requestStatistics, "CaptureTheFlag");
+        ICount.clearThreadStatistics();
     }
 
     /**
