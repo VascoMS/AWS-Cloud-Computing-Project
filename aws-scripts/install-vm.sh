@@ -22,10 +22,20 @@ source /etc/profile.d/maven.sh
 ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEYPAR_PATH ec2-user@$(cat instance.dns) "$cmd"
 
 # Copy web server code to instance
-scp -r -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEYPAR_PATH $DIR/cnv25-g32 ec2-user@$(cat instance.dns):
+cmd='mkdir /home/ec2-user/cnv-project' # Create directory for web server
+ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEYPAR_PATH ec2-user@$(cat instance.dns) "$cmd"
+scp -r -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEYPAR_PATH \
+  $DIR/../src/capturetheflag \
+  $DIR/../src/fifteenpuzzle \
+  $DIR/../src/gameoflife \
+  $DIR/../src/javassist \
+  $DIR/../src/storage \
+  $DIR/../src/webserver \
+  $DIR/../src/pom.xml \
+  ec2-user@$(cat instance.dns):/home/ec2-user/cnv-project/
 
 # Build web server
-cmd="cd cnv25-g32; source /etc/profile.d/maven.sh; mvn clean package"
+cmd="cd /home/ec2-user/cnv-project; source /etc/profile.d/maven.sh; mvn clean package"
 ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEYPAR_PATH ec2-user@$(cat instance.dns) "$cmd"
 
 # Setup web server to start on instance launch
@@ -46,7 +56,7 @@ SysVStartPriority=99
 WantedBy=multi-user.target" | sudo tee /etc/systemd/system/rc-local.service
 
 echo "#!/bin/sh -e
-cd /home/ec2-user/cnv25-g32
+cd /home/ec2-user/cnv-project
 java -cp webserver/target/webserver-1.0.0-SNAPSHOT-jar-with-dependencies.jar \
 -Xbootclasspath/a:javassist/target/JavassistWrapper-1.0-jar-with-dependencies.jar \
 -javaagent:webserver/target/webserver-1.0.0-SNAPSHOT-jar-with-dependencies.jar=ICount:pt.ulisboa.tecnico.cnv.capturetheflag,pt.ulisboa.tecnico.cnv.fifteenpuzzle,pt.ulisboa.tecnico.cnv.gameoflife:output \

@@ -1,3 +1,5 @@
 .idea
 **/target/
-output/
+**/output/
+**/*.id
+**/*.dns
