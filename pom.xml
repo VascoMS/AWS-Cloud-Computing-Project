@@ -17,6 +17,8 @@
 		<module>gameoflife</module>
 		<module>fifteenpuzzle</module>
 		<module>capturetheflag</module>
+		<module>javassist</module>
+		<module>storage</module>
 	</modules>
 
 </project>

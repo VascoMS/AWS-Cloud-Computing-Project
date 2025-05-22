@@ -15,6 +15,11 @@ import java.util.Map;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 
+import pt.ulisboa.tecnico.cnv.javassist.tools.ICount;
+import pt.ulisboa.tecnico.cnv.javassist.model.Statistics;
+import pt.ulisboa.tecnico.cnv.storage.StorageUtil;
+
+
 public class GameOfLifeHandler implements HttpHandler, RequestHandler<Map<String, String>, String> {
 
     private final static ObjectMapper MAPPER = new ObjectMapper();
@@ -118,6 +123,10 @@ public class GameOfLifeHandler implements HttpHandler, RequestHandler<Map<String
         OutputStream os = he.getResponseBody();
         os.write(response.getBytes());
         os.close();
+
+        Statistics requestStatistics = ICount.getThreadStatistics();
+        StorageUtil.storeStatistics(parameters, requestStatistics, "GameOfLife");
+        ICount.clearThreadStatistics();
     }
 
     /**
