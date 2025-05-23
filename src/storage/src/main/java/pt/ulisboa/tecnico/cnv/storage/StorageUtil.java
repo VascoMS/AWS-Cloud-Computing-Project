@@ -29,6 +29,9 @@ public class StorageUtil {
         metrics.put("nblocks", statistics.getNblocks());
         metrics.put("nmethod", statistics.getNmethod());
         metrics.put("ninsts", statistics.getNinsts());
+        metrics.put("nDataWrites", statistics.getNdataWrites());
+        metrics.put("nDataReads", statistics.getNdataReads());
+        metrics.put("complexity", statistics.computeComplexity());
         record.put("metrics", metrics);
 
         List<Map<String, Object>> records = new ArrayList<>();

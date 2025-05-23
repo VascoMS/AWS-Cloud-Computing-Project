@@ -16,6 +16,14 @@ public class Statistics {
      */
     private long ninsts;
 
+    /**
+     * Number of data accesses.
+     */
+    private long ndataWrites = 0;
+    private long ndataReads = 0;
+
+    private long complexity = 0;
+
     public Statistics(){
         nblocks = 0;
         nmethod = 0;
@@ -34,6 +42,10 @@ public class Statistics {
         return ninsts;
     }
 
+    public long getNdataWrites(){return ndataWrites;}
+
+    public long getNdataReads(){return ndataReads;}
+
     public void incrementNblocks(){
         nblocks++;
     }
@@ -43,4 +55,7 @@ public class Statistics {
     public void incrementNinsts(int length){
         ninsts += length;
     }
+    public void incrementNdataWrites(){ndataWrites++;}
+    public void incrementNdataReads(){ndataReads++;}
+    public long computeComplexity(){return complexity = ninsts + 2*ndataReads +3*ndataWrites + 5*nmethod;}
 }

@@ -6,6 +6,10 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import javassist.CannotCompileException;
 import javassist.CtBehavior;
+
+import javassist.expr.ExprEditor;
+import javassist.expr.FieldAccess;
+
 import pt.ulisboa.tecnico.cnv.javassist.model.Statistics;
 
 public class ICount extends CodeDumper {
@@ -38,12 +42,38 @@ public class ICount extends CodeDumper {
         currentThreadStatistics.incrementNmethod();
     }
 
+    public static void incDataWrite() {
+        Statistics currentThreadStatistics = getThreadStatistics();
+        currentThreadStatistics.incrementNdataWrites();
+    }
+
+    public static void incDataRead() {
+        Statistics currentThreadStatistics = getThreadStatistics();
+        currentThreadStatistics.incrementNdataReads();
+    }
+
+
     @Override
     protected void transform(CtBehavior behavior) throws Exception {
         super.transform(behavior);
-        System.out.println("Calling behavior transform on ICount");
+
+        // Count method invocations
         behavior.insertAfter(String.format("%s.incBehavior(\"%s\");", ICount.class.getName(), behavior.getLongName()));
+
+        // Instrument data accesses (field read/write)
+        behavior.instrument(new ExprEditor() {
+            @Override
+            public void edit(FieldAccess f) throws CannotCompileException {
+                if (f.isReader()) {
+                    f.replace(String.format("{ %s.incDataRead(); $_ = $proceed($$); }", ICount.class.getName()));
+                }
+                else if (f.isWriter()){
+                    f.replace(String.format("{ %s.incDataWrite(); $proceed($$); }", ICount.class.getName()));
+                }
+            }
+        });
     }
+
 
     @Override
     protected void transform(BasicBlock block) throws CannotCompileException {
