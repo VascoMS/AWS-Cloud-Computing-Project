@@ -1,0 +1,15 @@
+[ {
+  "game" : "FifteenPuzzle",
+  "metrics" : {
+    "complexity" : 236372,
+    "nblocks" : 9494,
+    "nDataWrites" : 174,
+    "nmethod" : 233,
+    "nDataReads" : 12900,
+    "ninsts" : 208885
+  },
+  "parameters" : {
+    "size" : "10",
+    "shuffles" : "10"
+  }
+} ]
