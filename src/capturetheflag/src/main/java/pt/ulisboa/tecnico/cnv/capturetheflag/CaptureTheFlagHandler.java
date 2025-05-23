@@ -2,6 +2,7 @@ package pt.ulisboa.tecnico.cnv.capturetheflag;
 
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
@@ -16,6 +17,7 @@ import pt.ulisboa.tecnico.cnv.javassist.tools.ICount;
 import pt.ulisboa.tecnico.cnv.javassist.model.Statistics;
 
 import pt.ulisboa.tecnico.cnv.storage.StorageUtil;
+import pt.ulisboa.tecnico.cnv.storage.Response;
 
 public class CaptureTheFlagHandler implements HttpHandler, RequestHandler<Map<String, String>, String> {
 
@@ -68,14 +70,19 @@ public class CaptureTheFlagHandler implements HttpHandler, RequestHandler<Map<St
             return;
         }
 
-        String response = handleWorkload(gridSize, numBlueAgents, numRedAgents, flagPlacementType);
+        String gameResult = handleWorkload(gridSize, numBlueAgents, numRedAgents, flagPlacementType);
+        Statistics requestStatistics = ICount.getThreadStatistics();
 
-        he.sendResponseHeaders(200, response.length());
+        Response response = new Response(gameResult, requestStatistics.computeComplexity());
+        ObjectMapper mapper = new ObjectMapper();
+
+        String jsonResponse = mapper.writeValueAsString(response);
+
+        he.sendResponseHeaders(200, jsonResponse.length());
         OutputStream os = he.getResponseBody();
-        os.write(response.getBytes());
+        os.write(jsonResponse.getBytes());
         os.close();
 
-        Statistics requestStatistics = ICount.getThreadStatistics();
         StorageUtil.storeStatistics(parameters, requestStatistics, "CaptureTheFlag");
         ICount.clearThreadStatistics();
     }

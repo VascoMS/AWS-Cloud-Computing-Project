@@ -2,6 +2,7 @@ package pt.ulisboa.tecnico.cnv.fifteenpuzzle;
 
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
@@ -16,6 +17,7 @@ import java.util.Random;
 import pt.ulisboa.tecnico.cnv.javassist.tools.ICount;
 import pt.ulisboa.tecnico.cnv.javassist.model.Statistics;
 
+import pt.ulisboa.tecnico.cnv.storage.Response;
 import pt.ulisboa.tecnico.cnv.storage.StorageUtil;
 
 public class FifteenPuzzleHandler implements HttpHandler, RequestHandler<Map<String, String>, String> {
@@ -67,16 +69,22 @@ public class FifteenPuzzleHandler implements HttpHandler, RequestHandler<Map<Str
         int size = Integer.parseInt(parameters.get("size"));
         int shuffles = Integer.parseInt(parameters.get("shuffles"));
 
-        String response = handleWorkload(size, shuffles);
+        String gameResult = handleWorkload(size, shuffles);
+        Statistics requestStatistics = ICount.getThreadStatistics();
 
-        he.sendResponseHeaders(200, response.length());
+        Response response = new Response(gameResult, requestStatistics.computeComplexity());
+        ObjectMapper mapper = new ObjectMapper();
+
+        String jsonResponse = mapper.writeValueAsString(response);
+
+        he.sendResponseHeaders(200, jsonResponse.length());
         OutputStream os = he.getResponseBody();
-        os.write(response.getBytes());
+        os.write(jsonResponse.getBytes());
         os.close();
 
-        Statistics requestStatistics = ICount.getThreadStatistics();
         StorageUtil.storeStatistics(parameters, requestStatistics, "FifteenPuzzle");
         ICount.clearThreadStatistics();
+
     }
 
 

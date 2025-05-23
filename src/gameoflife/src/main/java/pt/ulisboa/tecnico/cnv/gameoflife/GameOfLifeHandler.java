@@ -17,6 +17,7 @@ import com.amazonaws.services.lambda.runtime.RequestHandler;
 
 import pt.ulisboa.tecnico.cnv.javassist.tools.ICount;
 import pt.ulisboa.tecnico.cnv.javassist.model.Statistics;
+import pt.ulisboa.tecnico.cnv.storage.Response;
 import pt.ulisboa.tecnico.cnv.storage.StorageUtil;
 
 
@@ -117,14 +118,19 @@ public class GameOfLifeHandler implements HttpHandler, RequestHandler<Map<String
             return;
         }
 
-        String response = handleWorkload(map, iterations);
+        String gameResult = handleWorkload(map, iterations);
+        Statistics requestStatistics = ICount.getThreadStatistics();
 
-        he.sendResponseHeaders(200, response.length());
+        Response response = new Response(gameResult, requestStatistics.computeComplexity());
+        ObjectMapper mapper = new ObjectMapper();
+
+        String jsonResponse = mapper.writeValueAsString(response);
+
+        he.sendResponseHeaders(200, jsonResponse.length());
         OutputStream os = he.getResponseBody();
-        os.write(response.getBytes());
+        os.write(jsonResponse.getBytes());
         os.close();
 
-        Statistics requestStatistics = ICount.getThreadStatistics();
         StorageUtil.storeStatistics(parameters, requestStatistics, "GameOfLife");
         ICount.clearThreadStatistics();
     }
