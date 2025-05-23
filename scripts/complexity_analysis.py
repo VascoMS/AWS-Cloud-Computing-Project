@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
+
 server_url = "http://34.207.141.3:8000"
 
 def send_request(game, params):
@@ -12,6 +13,9 @@ def send_request(game, params):
     try:
         response = requests.get(f"{server_url}/{game}", params=params)
         elapsed_time = response.elapsed.total_seconds()
+        if response.status_code != 200:
+            print(f"Error: {response.status_code} - {response.text}")
+            return None, elapsed_time
         complexity = response.json().get("complexityScore")
         print(f"Params: {params}, Complexity: {complexity}, Elapsed Time: {elapsed_time:.4f} seconds")
         return complexity, elapsed_time
@@ -56,15 +60,11 @@ def plot_results(df):
 
 
 def main():
-    game = "fifteenpuzzle"
-    size = 10
+    game = "capturetheflag"
+    gridSize = 30
     params_list = [
-        {"size": size, "shuffles": shuffle}
-        for shuffle in range(5, 100, 5)
-    ]
-    params_list += [
-        {"size": size, "shuffles": shuffle}
-        for shuffle in range(96, 102, 1)
+        {"gridSize": gridSize, "numBlueAgents": blue, "numRedAgents": red, "flagPlacementType": "A"}
+        for blue, red in zip(range(5, 30), range(5, 30))
     ]
     df = analyze_complexity(game, params_list)
     plot_results(df)
