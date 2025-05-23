@@ -46,6 +46,8 @@ public class Statistics {
 
     public long getNdataReads(){return ndataReads;}
 
+    public long getComplexity(){return complexity;}
+
     public void incrementNblocks(){
         nblocks++;
     }
@@ -57,5 +59,8 @@ public class Statistics {
     }
     public void incrementNdataWrites(){ndataWrites++;}
     public void incrementNdataReads(){ndataReads++;}
-    public long computeComplexity(){return complexity = ninsts + 2*ndataReads +3*ndataWrites + 5*nmethod;}
+    public long computeComplexity(){
+        complexity = ninsts + 2*ndataReads +3*ndataWrites + 5*nmethod;
+        return complexity;
+    }
 }

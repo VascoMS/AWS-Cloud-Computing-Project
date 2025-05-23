@@ -12,4 +12,18 @@
     "size" : "10",
     "shuffles" : "10"
   }
+}, {
+  "game" : "FifteenPuzzle",
+  "metrics" : {
+    "complexity" : 479028,
+    "nblocks" : 17651,
+    "nDataWrites" : 372,
+    "nmethod" : 523,
+    "nDataReads" : 25981,
+    "ninsts" : 423335
+  },
+  "parameters" : {
+    "size" : "10",
+    "shuffles" : "20"
+  }
 } ]

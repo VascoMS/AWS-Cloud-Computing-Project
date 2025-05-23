@@ -120,8 +120,9 @@ public class GameOfLifeHandler implements HttpHandler, RequestHandler<Map<String
 
         String gameResult = handleWorkload(map, iterations);
         Statistics requestStatistics = ICount.getThreadStatistics();
+        requestStatistics.computeComplexity();
 
-        Response response = new Response(gameResult, requestStatistics.computeComplexity());
+        Response response = new Response(gameResult, requestStatistics);
         ObjectMapper mapper = new ObjectMapper();
 
         String jsonResponse = mapper.writeValueAsString(response);

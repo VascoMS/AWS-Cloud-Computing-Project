@@ -1,11 +1,13 @@
 package pt.ulisboa.tecnico.cnv.storage;
 
+import pt.ulisboa.tecnico.cnv.javassist.model.Statistics;
+
 public class Response {
 
     private String gameResult;
-    private long complexityScore;
+    private Statistics complexityScore;
 
-    public Response(String gameResult, long complexityScore) {
+    public Response(String gameResult, Statistics complexityScore) {
         this.gameResult = gameResult;
         this.complexityScore = complexityScore;
     }
@@ -18,11 +20,11 @@ public class Response {
         this.gameResult = gameResult;
     }
 
-    public long getComplexityScore() {
+    public Statistics getComplexityScore() {
         return complexityScore;
     }
 
-    public void setComplexityScore(long complexityScore) {
+    public void setComplexityScore(Statistics complexityScore) {
         this.complexityScore = complexityScore;
     }
 }

@@ -72,8 +72,9 @@ public class CaptureTheFlagHandler implements HttpHandler, RequestHandler<Map<St
 
         String gameResult = handleWorkload(gridSize, numBlueAgents, numRedAgents, flagPlacementType);
         Statistics requestStatistics = ICount.getThreadStatistics();
+        requestStatistics.computeComplexity();
 
-        Response response = new Response(gameResult, requestStatistics.computeComplexity());
+        Response response = new Response(gameResult, requestStatistics);
         ObjectMapper mapper = new ObjectMapper();
 
         String jsonResponse = mapper.writeValueAsString(response);

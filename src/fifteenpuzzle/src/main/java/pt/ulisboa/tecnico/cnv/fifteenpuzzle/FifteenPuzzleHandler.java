@@ -71,8 +71,9 @@ public class FifteenPuzzleHandler implements HttpHandler, RequestHandler<Map<Str
 
         String gameResult = handleWorkload(size, shuffles);
         Statistics requestStatistics = ICount.getThreadStatistics();
+        requestStatistics.computeComplexity();
 
-        Response response = new Response(gameResult, requestStatistics.computeComplexity());
+        Response response = new Response(gameResult, requestStatistics);
         ObjectMapper mapper = new ObjectMapper();
 
         String jsonResponse = mapper.writeValueAsString(response);
