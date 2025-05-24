@@ -1,5 +1,7 @@
 #!/bin/bash
 
+source config.sh
+
 # Read image ID from file
 IMAGE_ID=$(cat image.id)
 
