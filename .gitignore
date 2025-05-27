@@ -4,3 +4,4 @@
 **/*.id
 **/*.dns
 **/config.sh
+**/.DS_Store
