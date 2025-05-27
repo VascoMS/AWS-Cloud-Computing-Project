@@ -2,9 +2,10 @@ import requests
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 
-
-server_url = "http://34.207.141.3:8000"
+webserver_ip = "localhost"  # Change to your server's IP if needed
+server_url = f"http://{webserver_ip}:8000"
 
 def send_request(game, params):
     """
@@ -16,9 +17,9 @@ def send_request(game, params):
         if response.status_code != 200:
             print(f"Error: {response.status_code} - {response.text}")
             return None, elapsed_time
-        complexity = response.json().get("complexityScore")
-        print(f"Params: {params}, Complexity: {complexity}, Elapsed Time: {elapsed_time:.4f} seconds")
-        return complexity, elapsed_time
+        requestStatistics = response.json().get("requestStatistics")
+        print(f"Params: {params}, requestStatistics: {requestStatistics}, Elapsed Time: {elapsed_time:.4f} seconds")
+        return requestStatistics, elapsed_time
     except requests.exceptions.RequestException as e:
         print("Error sending request:", e)
 
@@ -26,48 +27,70 @@ def send_request(game, params):
 def analyze_complexity(game, params_list):
     results = []
     for params in params_list:
-        complexity, elapsed_time = send_request(game, params)
-        if complexity is not None:
+        requestStatistics, elapsed_time = send_request(game, params)
+        if requestStatistics is not None:
             results.append({
-                "complexity": complexity,
+                "complexity": requestStatistics.get("complexity", 0),
+                "nblocks": requestStatistics.get("nblocks", 0),
+                "nmethod": requestStatistics.get("nmethod", 0),
+                "ninsts": requestStatistics.get("ninsts", 0),
+                "ndataWrites": requestStatistics.get("ndataWrites", 0),
+                "ndataReads": requestStatistics.get("ndataReads", 0),
                 "elapsed_time": elapsed_time
             })
         else:
             print(f"Failed to get complexity for params: {params}")
     return pd.DataFrame(results)
 
-def plot_results(df):
+def plot_results(df, game_name):
     """
-    Plots the complexity vs elapsed time using matplotlib.
+    Creates and saves a separate plot for each metric vs elapsed time.
+    Saves plots to the 'charts' directory.
     """
-    
-    plt.figure(figsize=(10, 6))
-    plt.scatter(df['complexity'], df['elapsed_time'], alpha=0.7)
-    plt.xlabel('Complexity Score')
-    plt.ylabel('Response Time (s)')
-    plt.title('Response Time vs Complexity')
-    
-    # Add a best fit line to visualize correlation
-    if len(df) > 1:
-        z = np.polyfit(df['complexity'], df['elapsed_time'], 1)
-        p = np.poly1d(z)
-        plt.plot(df['complexity'], p(df['complexity']), "r--", alpha=0.8, 
-                 label=f"Trend Line (y={z[0]:.4f}x+{z[1]:.4f})")
+    metrics = ['complexity', 'nblocks', 'nmethod', 'ninsts', 'ndataWrites', 'ndataReads']
+    df_sorted = df.sort_values(by='elapsed_time')
+
+    # Create charts directory if it doesn't exist
+    os.makedirs("charts", exist_ok=True)
+
+    for metric in metrics:
+        plt.figure(figsize=(10, 6))
+        plt.plot(df_sorted['elapsed_time'], df_sorted[metric], marker='o', alpha=0.7, label=metric)
+        plt.xlabel('Elapsed Time (s)')
+        plt.ylabel(metric)
+        plt.title(f'{metric} vs Elapsed Time - {game_name}')
+        plt.grid(True, alpha=0.3)
         plt.legend()
-    
-    plt.grid(True, alpha=0.3)
-    plt.show()
+        plt.tight_layout()
+
+        # Save the figure with a descriptive name
+        filename = f"charts/{game_name}_{metric}_vs_elapsed_time.png"
+        plt.savefig(filename)
+        plt.close()
 
 
 def main():
-    game = "capturetheflag"
-    gridSize = 30
-    params_list = [
-        {"gridSize": gridSize, "numBlueAgents": blue, "numRedAgents": red, "flagPlacementType": "A"}
+    capturetheflag_params = [
+        {"gridSize": 30, "numBlueAgents": blue, "numRedAgents": red, "flagPlacementType": "A"}
         for blue, red in zip(range(5, 30), range(5, 30))
     ]
-    df = analyze_complexity(game, params_list)
-    plot_results(df)
+    fifteenpuzzle_params = [
+        {"size": 20, "shuffles": shuffles}
+        for shuffles in range(70, 86, 2)
+    ]
+    gameoflife_params = [
+        {"mapFilename": "glider-10-10.json", "iterations": iterations}
+        for iterations in range(1000, 20000, 1000)
+    ]
+    params_list = {
+        #"capturetheflag": capturetheflag_params,
+        "fifteenpuzzle": fifteenpuzzle_params,
+        #"gameoflife": gameoflife_params
+    }
+
+    for game, params in params_list.items():
+        df = analyze_complexity(game, params)
+        plot_results(df, game)
 
 if __name__ == "__main__":
     main()

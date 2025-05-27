@@ -1,0 +1,43 @@
+Only method calls:
+    Run 1:
+    Average elapsed time for capturetheflag: 0.1199 seconds
+    Average elapsed time for fifteenpuzzle: 0.0101 seconds
+    Average elapsed time for gameoflife: 0.0403 seconds
+
+    Run 2:
+    Average elapsed time for capturetheflag: 0.1180 seconds
+    Average elapsed time for fifteenpuzzle: 0.0091 seconds
+    Average elapsed time for gameoflife: 0.0387 seconds
+
+Intructions, Basic Blocks, Method Calls, Writes, Reads:
+    Run 1:
+    Average elapsed time for capturetheflag: 0.6317 seconds
+    Average elapsed time for fifteenpuzzle: 0.0634 seconds
+    Average elapsed time for gameoflife: 0.6781 seconds
+
+    Run 2:
+    Average elapsed time for capturetheflag: 0.6151 seconds
+    Average elapsed time for fifteenpuzzle: 0.0619 seconds
+    Average elapsed time for gameoflife: 0.6712 seconds
+
+Intructions, Basic Blocks:
+    Run 1:
+    Average elapsed time for capturetheflag: 0.4055 seconds
+    Average elapsed time for fifteenpuzzle: 0.0275 seconds
+    Average elapsed time for gameoflife: 0.3162 seconds
+
+    Run 2:
+    Average elapsed time for capturetheflag: 0.3809 seconds
+    Average elapsed time for fifteenpuzzle: 0.0246 seconds
+    Average elapsed time for gameoflife: 0.3040 seconds
+
+Reads, Writes:
+    Run 1:
+    Average elapsed time for capturetheflag: 0.2207 seconds
+    Average elapsed time for fifteenpuzzle: 0.0383 seconds
+    Average elapsed time for gameoflife: 0.4987 seconds
+
+    Run 2:
+    Average elapsed time for capturetheflag: 0.2081 seconds
+    Average elapsed time for fifteenpuzzle: 0.0500 seconds
+    Average elapsed time for gameoflife: 0.5458 seconds

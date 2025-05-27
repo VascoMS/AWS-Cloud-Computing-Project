@@ -5,26 +5,19 @@ import pt.ulisboa.tecnico.cnv.javassist.model.Statistics;
 public class Response {
 
     private String gameResult;
-    private Statistics complexityScore;
+    private Statistics requestStatistics;
 
-    public Response(String gameResult, Statistics complexityScore) {
+
+    public Response(String gameResult, Statistics requestStatistics) {
         this.gameResult = gameResult;
-        this.complexityScore = complexityScore;
+        this.requestStatistics = requestStatistics;
     }
 
     public String getGameResult() {
         return gameResult;
     }
 
-    public void setGameResult(String gameResult) {
-        this.gameResult = gameResult;
-    }
-
-    public Statistics getComplexityScore() {
-        return complexityScore;
-    }
-
-    public void setComplexityScore(Statistics complexityScore) {
-        this.complexityScore = complexityScore;
+    public Statistics getRequestStatistics() {
+        return requestStatistics;
     }
 }

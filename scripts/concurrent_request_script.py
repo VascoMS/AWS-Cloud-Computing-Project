@@ -3,7 +3,8 @@ import asyncio
 import time
 
 # Server URL
-server_url = "http://34.207.141.3:8000/capturetheflag?gridSize=30&numBlueAgents=29&numRedAgents=29&flagPlacementType=A"
+webserver_ip = "localhost"  # Change to your server's IP if needed
+server_url = f"http://{webserver_ip}:8000/capturetheflag?gridSize=30&numBlueAgents=29&numRedAgents=29&flagPlacementType=A"
 
 # Function to make a single async request
 async def make_request(session, url):
