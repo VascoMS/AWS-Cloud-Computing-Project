@@ -2,7 +2,6 @@ package pt.ulisboa.tecnico.cnv.webserver;
 
 import java.net.InetSocketAddress;
 
-import com.amazonaws.services.ec2.model.Storage;
 import com.sun.net.httpserver.HttpServer;
 
 import pt.ulisboa.tecnico.cnv.capturetheflag.CaptureTheFlagHandler;

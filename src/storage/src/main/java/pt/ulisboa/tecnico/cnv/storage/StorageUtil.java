@@ -26,7 +26,7 @@ public class StorageUtil {
 
     public static final String SORT_KEY = "parameters";
 
-    private static final String AWS_REGION = "us-east-2";
+    private static final String AWS_REGION = "us-east-1";
 
     private static final AmazonDynamoDB dynamoDB = AmazonDynamoDBClientBuilder.standard()
             .withCredentials(new EnvironmentVariableCredentialsProvider())
@@ -65,23 +65,18 @@ public class StorageUtil {
         Map<String, AttributeValue> item = new HashMap<>();
         item.put(PARTITION_KEY, new AttributeValue(game)); // Partition key
         item.put(SORT_KEY, new AttributeValue(paramKey)); // Sort key
-
-        // Add metrics as a nested map
-        Map<String, AttributeValue> metricsMap = new HashMap<>();
-        metricsMap.put("nblocks", new AttributeValue().withN(String.valueOf(statistics.getNblocks())));
-        metricsMap.put("nmethod", new AttributeValue().withN(String.valueOf(statistics.getNmethod())));
-        metricsMap.put("ninsts", new AttributeValue().withN(String.valueOf(statistics.getNinsts())));
-        metricsMap.put("nDataWrites", new AttributeValue().withN(String.valueOf(statistics.getNdataWrites())));
-        metricsMap.put("nDataReads", new AttributeValue().withN(String.valueOf(statistics.getNdataReads())));
-        metricsMap.put("complexity", new AttributeValue().withN(String.valueOf(statistics.computeComplexity())));
-
-        item.put("metrics", new AttributeValue().withM(metricsMap));
-
+        item.put("nblocks", new AttributeValue().withN(String.valueOf(statistics.getNblocks())));
+        item.put("nmethod", new AttributeValue().withN(String.valueOf(statistics.getNmethod())));
+        item.put("ninsts", new AttributeValue().withN(String.valueOf(statistics.getNinsts())));
+        item.put("nDataWrites", new AttributeValue().withN(String.valueOf(statistics.getNdataWrites())));
+        item.put("nDataReads", new AttributeValue().withN(String.valueOf(statistics.getNdataReads())));
+        item.put("complexity", new AttributeValue().withN(String.valueOf(statistics.computeComplexity())));
         PutItemRequest putRequest = new PutItemRequest()
                 .withTableName(TABLE_NAME)
                 .withItem(item);
 
         dynamoDB.putItem(putRequest);
+        System.out.println("Stored statistics for " + game);
 
     }
 }
