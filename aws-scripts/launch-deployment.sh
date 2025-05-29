@@ -47,3 +47,15 @@ aws autoscaling create-auto-scaling-group \
 	--min-size 1 \
 	--max-size 1 \
 	--desired-capacity 1
+
+# Create scaling policy. This policy scales out when CPU utilization exceeds 50%.
+#aws autoscaling put-scaling-policy \
+#  --policy-name scale-out-policy \
+#  --auto-scaling-group-name CNV-AutoScalingGroup \
+#  --policy-type TargetTrackingScaling \
+#  --target-tracking-configuration '{
+#      "PredefinedMetricSpecification": {
+#          "PredefinedMetricType": "ASGAverageCPUUtilization"
+#      },
+#      "TargetValue": 50.0
+#  }'

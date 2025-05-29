@@ -32,6 +32,7 @@ scp -r -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEYPAR_PATH \
   $DIR/../src/storage \
   $DIR/../src/webserver \
   $DIR/../src/pom.xml \
+  $DIR/../aws-scripts/config.sh \
   ec2-user@$(cat instance.dns):/home/ec2-user/cnv-project/
 
 # Build web server
@@ -57,6 +58,7 @@ WantedBy=multi-user.target" | sudo tee /etc/systemd/system/rc-local.service
 
 echo "#!/bin/sh -e
 cd /home/ec2-user/cnv-project
+source /home/ec2-user/cnv-project/config.sh
 java -cp webserver/target/webserver-1.0.0-SNAPSHOT-jar-with-dependencies.jar \
 -Xbootclasspath/a:javassist/target/JavassistWrapper-1.0-jar-with-dependencies.jar \
 -javaagent:webserver/target/webserver-1.0.0-SNAPSHOT-jar-with-dependencies.jar=ICount:pt.ulisboa.tecnico.cnv.capturetheflag,pt.ulisboa.tecnico.cnv.fifteenpuzzle,pt.ulisboa.tecnico.cnv.gameoflife:output \
