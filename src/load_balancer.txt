@@ -1,0 +1,160 @@
+Load Balancer:
+
+function handle_incoming_request(request):
+    # Step 1: Estimate instruction count from MSS
+    params = extract_parameters(request)
+    estimated_complexity = estimate_complexity(params)
+
+    # Step 2: Get current VM load map and system state
+    vm_loads = get_current_vm_loads()  # {vm1: {current_load: X, queued: Y}, ...}
+    active_vms = vm_loads.keys().size()
+    avg_vm_load = calculate_average_load(vm_loads)
+
+    # Configuration parameters
+    VM_CAPACITY = 2_000_000          # Max capacity per VM
+    LAMBDA_THRESHOLD = 500_000       # Complexity threshold for Lambda
+    SPREAD_THRESHOLD = 0.7           # 70% avg load triggers spreading
+    PACK_THRESHOLD = 0.3             # Below 30% triggers consolidation
+
+    # Step 3: Hybrid decision logic
+    if avg_vm_load > SPREAD_THRESHOLD * VM_CAPACITY:
+        # Spreading-dominant mode (high load situation)
+        if estimated_complexity < LAMBDA_THRESHOLD:
+            # Fast-path for small requests during high load
+            invoke_lambda(request)
+        else:
+            # Find best VM using spreading strategy
+            target_vm = find_vm_for_spreading(vm_loads, estimated_complexity, VM_CAPACITY)
+            if target_vm:
+                assign_to_vm(target_vm, request, estimated_complexity)
+            else:
+                # All VMs full - queue to least loaded or trigger scale-up
+                queue(request, vm_loads)
+
+    elif avg_vm_load < PACK_THRESHOLD * VM_CAPACITY and active_vms > 1:
+        # Packing-dominant mode (low load situation)
+        target_vm = find_vm_for_packing(vm_loads, estimated_complexity, VM_CAPACITY)
+        if target_vm:
+            assign_to_vm(target_vm, request, estimated_complexity)
+        else:
+            # Can't pack - use Lambda or smallest VM
+            if estimated_complexity < LAMBDA_THRESHOLD:
+                invoke_lambda(request)
+            else:
+                target_vm = min_load(vm_loads)
+                assign_to_vm(target_vm, request, estimated_complexity)
+    else:
+        # Balanced mode - hybrid approach
+        target_vm = balanced_vm_selection(vm_loads, estimated_complexity, VM_CAPACITY)
+        if target_vm:
+            assign_to_vm(target_vm, request, estimated_complexity)
+        else if estimated_complexity < LAMBDA_THRESHOLD:
+            invoke_lambda(request)
+        else:
+            queue(request, vm_loads)
+
+function find_vm_for_spreading(vm_loads, complexity, capacity):
+    # Spreading: Prefer least loaded VM that can handle the request
+    suitable_vms = []
+    for vm_id, load_info in vm_loads.items():
+        total_load = load_info.current_load + load_info.queued + complexity
+        if total_load < capacity and vm_id in available_workers:
+            suitable_vms.append((vm_id, total_load))
+
+    if suitable_vms:
+        return min_load(suitable_vms)  # VM with lowest projected total load
+    return null
+
+function find_vm_for_packing(vm_loads, complexity, capacity):
+    # Packing: Prefer most loaded VM that can still handle the request
+    suitable_vms = []
+    for vm_id, load_info in vm_loads.items():
+        total_load = load_info.current_load + load_info.queued + complexity
+        if total_load < capacity and vm_id in available_workers:
+            suitable_vms.append((vm_id, load_info.current_load))
+
+    if suitable_vms:
+        return max_load(suitable_vms)  # VM with highest current load
+    return null
+
+function balanced_vm_selection(vm_loads, complexity, capacity):
+    candidates = []
+
+    for vm_id, load_info in vm_loads.items():
+        current_load = load_info.current_load
+        queued_load = load_info.queued
+        projected_load = current_load + queued_load + complexity
+
+        # Reject VMs that can't handle this request
+        if projected_load > capacity or vm_id not in available_workers:
+            continue
+
+        # Calculate two normalized scores (0-1 range):
+        # 1. Spreading score (higher for less loaded VMs)
+        spreading_score = 1 - (current_load / capacity)
+
+        # 2. Packing score (higher for more loaded VMs)
+        packing_score = current_load / capacity
+
+        # Dynamic weighting based on system conditions
+        avg_system_load = calculate_average_load(vm_loads)
+        spreading_weight = 0.3 + (0.7 * avg_system_load)  # More weight to spreading when system is busy
+        packing_weight = 1 - spreading_weight
+
+        # Combined score
+        hybrid_score = (spreading_score * spreading_weight) +
+                       (packing_score * packing_weight)
+
+        candidates.append({
+            'vm_id': vm_id,
+            'score': hybrid_score,
+            'projected_load': projected_load
+        })
+
+    # Return VM with highest hybrid score
+    return max(candidates, key=lambda x: x['score'])
+
+function queue(request, vm_loads):
+    target_vm = min_load(vm_loads)
+    queue_request_to_vm(target_vm, request, estimated_complexity)
+
+function handle_autoscaler_request(request):
+    if request.type == "GET_LOAD":
+        # Respond with current VM loads
+        return get_current_vm_loads()
+
+    else if request.type == "ADD_WORKER":
+        new_worker_id = request.content
+        add_new_worker(new_worker_id)
+        return { "status": "worker added", "worker_id": new_worker_id }
+
+    else if request.type == "REMOVE_WORKER":
+        vm_loads = get_current_vm_loads()
+        worker_id = min_load(vm_loads)
+        initiate_worker_removal(worker_id)
+        return {"worker_id": worker_id }
+
+function add_new_worker(new_worker_id):
+    available_workers.add(new_worker_id)
+    vm_instruction_load_map[new_worker_id] = 0
+
+function initiate_worker_removal(worker_id):
+    # Mark as draining: don't assign new requests to this worker
+    draining_workers.add(worker_id)
+    available_workers.remove(worker_id)
+
+function finalize_worker_removal(worker_id):
+    current_load = vm_instruction_load_map.get(worker_id, 0)
+    if current_load > 0:
+        # Worker still busy, cannot remove yet
+        return PENDING
+    vm_instruction_load_map.remove(worker_id)
+    draining_workers.remove(worker_id)
+    return REMOVED
+
+
+function estimate_complexity(params):
+   complexity = local_cache.get(params)
+   if complexity == null:
+      complexity = fetch_from_mss(params)
+   return complexity
