@@ -29,3 +29,30 @@ When we want to terminate the deployment and leave no resources being used in AW
 
 1. `./terminate-deployment.sh`
 2. `./deregister-delete-image.sh`
+
+## Description of the architecture
+
+1. The webserver now includes a new endpoint `test/` so that the `test-vm.sh` script can verify that the webserver is autostarting as it should
+2. We edited the code from the `ICount` tool in the `javassist` package to count method invocations, data accesses (reads and writes), number of basic blocks and instructions executed. The code necessary to collect and store some of the previously mentioned metrics is commented out. This is because the analysis we made after and explained in the report made us only care about the number of method invocations. 
+3. Each thread stores these metrics in their own object of the class `Statistics`
+4. After sending the game solution to the client, each of the games' handlers will fetch the `Statistics` object and call the `storeStatistics` method from the class `StorageUtil`.
+5. The method `storeStatistics` creates a table in Amazon DynamoDB if it doesn't exist already and adds a new entry with the parameters and metrics of a request.
+6. After storing the metrics, the object `Statistics` associated with the current thread is deleted by calling the method `ICount.clearThreadStatistics()` 
+
+## Selections of the AWS system configurations
+
+### Load Balancer
+
+1. Configured to listen on port 80 and forward to port 8000 on the instances
+2. The default timeout is increased to 120 seconds so it doesn't give up on heavier requests
+3. A health check is configured to run every 30 seconds on the `test/` endpoint
+
+### Auto Scaler
+
+1. We create an auto scaling group named CNV-AutoScalingGroup
+2. Instances are launched using the CNV-LaunchTemplate
+3. We associate this ASG with the previous load balancer
+4. Health checks are performed by the load balancer
+5. New instances have 60 seconds after launch before health checks begin
+6. The ASG never scales below 1 instance or above 5 instances and the desired capacity is 1 instance
+7. We added a scaling policy to the ASG making it launch new instances when the average CPU utilization goes above 90% or terminate instances when it goes below this target.
