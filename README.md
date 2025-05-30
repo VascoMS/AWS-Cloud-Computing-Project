@@ -1,6 +1,6 @@
 ## Games@Cloud
 
-The following packages can be found in `src/`:
+The following modules can be found in `src/`:
 
 1. `capturetheflag` - the Capture the Flag workload
 2. `fifteenpuzzle` - the 15-Puzzle Solver workload
@@ -9,7 +9,7 @@ The following packages can be found in `src/`:
 5. `javassist` - javassist tool to gather metrics
 6. `storage` - storage of the gathered metrics using Amazon DynamoDB
 
-Refer to the `README.md` files of the first three packages to get more details about each workload.
+Refer to the `README.md` files of the first three modules to get more details about each workload.
 
 ### How to run the webserver locally with instrumentation of the workloads
 
@@ -33,7 +33,7 @@ When we want to terminate the deployment and leave no resources being used in AW
 ## Description of the architecture
 
 1. The webserver now includes a new endpoint `test/` so that the `test-vm.sh` script can verify that the webserver is autostarting as it should
-2. We edited the code from the `ICount` tool in the `javassist` package to count method invocations, data accesses (reads and writes), number of basic blocks and instructions executed. The code necessary to collect and store some of the previously mentioned metrics is commented out. This is because the analysis we made after and explained in the report made us only care about the number of method invocations. 
+2. We edited the code from the `ICount` tool in the `javassist` module to count method invocations, data accesses (reads and writes), number of basic blocks and instructions executed. The code necessary to collect and store some of the previously mentioned metrics is commented out. This is because the analysis we made after and explained in the report made us only care about the number of method invocations. 
 3. Each thread stores these metrics in their own object of the class `Statistics`
 4. After sending the game solution to the client, each of the games' handlers will fetch the `Statistics` object and call the `storeStatistics` method from the class `StorageUtil`.
 5. The method `storeStatistics` creates a table in Amazon DynamoDB if it doesn't exist already and adds a new entry with the parameters and metrics of a request.
