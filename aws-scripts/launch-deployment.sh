@@ -9,6 +9,11 @@ aws elb create-load-balancer \
 	--availability-zones us-east-1a \
 	--security-groups $AWS_SECURITY_GROUP
 
+# We set the timeout for 120 seconds so the load balancer doesn't give up too early on the requests
+aws elb modify-load-balancer-attributes \
+  --load-balancer-name CNV-LoadBalancer \
+  --load-balancer-attributes '{"ConnectionSettings": {"IdleTimeout": 120}}'
+
 aws elb configure-health-check \
 	--load-balancer-name CNV-LoadBalancer \
 	--health-check Target=HTTP:8000/test,Interval=30,UnhealthyThreshold=2,HealthyThreshold=10,Timeout=5
