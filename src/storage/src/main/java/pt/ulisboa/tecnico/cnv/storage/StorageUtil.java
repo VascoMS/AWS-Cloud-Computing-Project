@@ -65,12 +65,12 @@ public class StorageUtil {
         Map<String, AttributeValue> item = new HashMap<>();
         item.put(PARTITION_KEY, new AttributeValue(game)); // Partition key
         item.put(SORT_KEY, new AttributeValue(paramKey)); // Sort key
-        item.put("nblocks", new AttributeValue().withN(String.valueOf(statistics.getNblocks())));
+        // item.put("nblocks", new AttributeValue().withN(String.valueOf(statistics.getNblocks())));
         item.put("nmethod", new AttributeValue().withN(String.valueOf(statistics.getNmethod())));
-        item.put("ninsts", new AttributeValue().withN(String.valueOf(statistics.getNinsts())));
-        item.put("nDataWrites", new AttributeValue().withN(String.valueOf(statistics.getNdataWrites())));
-        item.put("nDataReads", new AttributeValue().withN(String.valueOf(statistics.getNdataReads())));
-        item.put("complexity", new AttributeValue().withN(String.valueOf(statistics.computeComplexity())));
+        // item.put("ninsts", new AttributeValue().withN(String.valueOf(statistics.getNinsts())));
+        // item.put("nDataWrites", new AttributeValue().withN(String.valueOf(statistics.getNdataWrites())));
+        // item.put("nDataReads", new AttributeValue().withN(String.valueOf(statistics.getNdataReads())));
+        // item.put("complexity", new AttributeValue().withN(String.valueOf(statistics.computeComplexity())));
         PutItemRequest putRequest = new PutItemRequest()
                 .withTableName(TABLE_NAME)
                 .withItem(item);

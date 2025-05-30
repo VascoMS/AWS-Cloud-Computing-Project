@@ -13,15 +13,6 @@ aws elb configure-health-check \
 	--load-balancer-name CNV-LoadBalancer \
 	--health-check Target=HTTP:8000/test,Interval=30,UnhealthyThreshold=2,HealthyThreshold=10,Timeout=5
 
-# Create launch configuration.
-# aws autoscaling create-launch-configuration \
-#	--launch-configuration-name CNV-LaunchConfiguration \
-#	--image-id $(cat image.id) \
-#	--instance-type t2.micro \
-#	--security-groups $AWS_SECURITY_GROUP \
-#	--key-name $AWS_KEYPAIR_NAME \
-#	--instance-monitoring Enabled=true
-
 # Create a launch template.
 aws ec2 create-launch-template \
   --launch-template-name CNV-LaunchTemplate \
@@ -34,8 +25,6 @@ aws ec2 create-launch-template \
     \"Monitoring\": {\"Enabled\": true}
   }"
 
-
-
 # Create auto scaling group.
 aws autoscaling create-auto-scaling-group \
 	--auto-scaling-group-name CNV-AutoScalingGroup \
@@ -45,17 +34,17 @@ aws autoscaling create-auto-scaling-group \
 	--health-check-type ELB \
 	--health-check-grace-period 60 \
 	--min-size 1 \
-	--max-size 1 \
+	--max-size 5 \
 	--desired-capacity 1
 
 # Create scaling policy. This policy scales out when CPU utilization exceeds 50%.
-#aws autoscaling put-scaling-policy \
-#  --policy-name scale-out-policy \
-#  --auto-scaling-group-name CNV-AutoScalingGroup \
-#  --policy-type TargetTrackingScaling \
-#  --target-tracking-configuration '{
-#      "PredefinedMetricSpecification": {
-#          "PredefinedMetricType": "ASGAverageCPUUtilization"
-#      },
-#      "TargetValue": 50.0
-#  }'
+aws autoscaling put-scaling-policy \
+  --policy-name scale-out-policy \
+  --auto-scaling-group-name CNV-AutoScalingGroup \
+  --policy-type TargetTrackingScaling \
+  --target-tracking-configuration '{
+      "PredefinedMetricSpecification": {
+          "PredefinedMetricType": "ASGAverageCPUUtilization"
+      },
+      "TargetValue": 90.0
+  }'
