@@ -1,5 +1,13 @@
 Load Balancer:
 
+# Configuration parameters
+GLOBAL_OVERFLOW_QUEUE = []  # List of (request, estimated_complexity)
+MAX_VM_QUEUE_LOAD = 0.2 * VM_CAPACITY  # Max queued load per VM
+VM_CAPACITY = 44153067 # Max capacity per VM based on normalized nmethods against capture the flag scale
+LAMBDA_THRESHOLD = 756005 # Complexity threshold for Lambda
+SPREAD_THRESHOLD = 0.7 # 70% avg load triggers spreading
+PACK_THRESHOLD = 0.3 # Below 30% triggers consolidation
+
 function handle_incoming_request(request):
     # Step 1: Estimate instruction count from MSS
     params = extract_parameters(request)
@@ -9,12 +17,6 @@ function handle_incoming_request(request):
     vm_loads = get_current_vm_loads()  # {vm1: {current_load: X, queued: Y}, ...}
     active_vms = vm_loads.keys().size()
     avg_vm_load = calculate_average_load(vm_loads)
-
-    # Configuration parameters
-    VM_CAPACITY = 2_000_000          # Max capacity per VM
-    LAMBDA_THRESHOLD = 500_000       # Complexity threshold for Lambda
-    SPREAD_THRESHOLD = 0.7           # 70% avg load triggers spreading
-    PACK_THRESHOLD = 0.3             # Below 30% triggers consolidation
 
     # Step 3: Hybrid decision logic
     if avg_vm_load > SPREAD_THRESHOLD * VM_CAPACITY:
@@ -114,25 +116,28 @@ function balanced_vm_selection(vm_loads, complexity, capacity):
     # Return VM with highest hybrid score
     return max(candidates, key=lambda x: x['score'])
 
-function queue(request, vm_loads):
-    target_vm = min_load(vm_loads)
-    queue_request_to_vm(target_vm, request, estimated_complexity)
+function queue(request, vm_loads, estimated_complexity):
+    best_vm = null
+    min_total_load = float('inf')
 
-function handle_autoscaler_request(request):
-    if request.type == "GET_LOAD":
-        # Respond with current VM loads
-        return get_current_vm_loads()
+    for vm_id, load_info in vm_loads.items():
+        if vm_id not in available_workers:
+            continue
 
-    else if request.type == "ADD_WORKER":
-        new_worker_id = request.content
-        add_new_worker(new_worker_id)
-        return { "status": "worker added", "worker_id": new_worker_id }
+        queued_load = load_info.queued
+        current_load = load_info.current_load
+        projected_queued = queued_load + estimated_complexity
 
-    else if request.type == "REMOVE_WORKER":
-        vm_loads = get_current_vm_loads()
-        worker_id = min_load(vm_loads)
-        initiate_worker_removal(worker_id)
-        return {"worker_id": worker_id }
+        if projected_queued <= MAX_VM_QUEUE_LOAD:
+            total_load = current_load + queued_load
+            if total_load < min_total_load:
+                min_total_load = total_load
+                best_vm = vm_id
+
+    if best_vm:
+        queue_request_to_vm(best_vm, request, estimated_complexity)
+    else:
+        GLOBAL_OVERFLOW_QUEUE.append((request, estimated_complexity))
 
 function add_new_worker(new_worker_id):
     available_workers.add(new_worker_id)
@@ -152,9 +157,10 @@ function finalize_worker_removal(worker_id):
     draining_workers.remove(worker_id)
     return REMOVED
 
-
 function estimate_complexity(params):
    complexity = local_cache.get(params)
    if complexity == null:
       complexity = fetch_from_mss(params)
+      if complexity == null:
+        complexity = approximate_complexity_from_params(params)
    return complexity
