@@ -1,47 +1,40 @@
-CONFIG:
-    VM_CAPACITY = 2_000_000
-    SCALE_OUT_THRESHOLD = 0.85
-    SCALE_IN_THRESHOLD = 0.25
-    QUEUE_LENGTH_THRESHOLD = 150
-    MIN_WORKERS = 1
-    MAX_WORKERS = 10
+SCALE_OUT_CPU_THRESHOLD = 0.75
+CPU_SCALE_IN_THRESHOLD = 0.25
+MIN_WORKERS = 1
+MAX_WORKERS = 10
 
 function autoscaler_tick():
-    # Ask LB for VM load info
-    response = send_request_to_lb({ "type": "GET_LOAD" })
-    vm_loads = response.vm_loads
+    avg_cpu_util = get_avg_cpu_from_cloudwatch()
+    global_queue_length = len(GLOBAL_OVERFLOW_QUEUE)
+    active_vms = size(available_workers)
 
-    avg_load, avg_queue, active_vms = calculate_metrics(vm_loads)
-
-    if avg_load > SCALE_OUT_THRESHOLD OR avg_queue > QUEUE_LENGTH_THRESHOLD:
+    # --- SCALE OUT ---
+    if (avg_cpu_util > SCALE_OUT_CPU_THRESHOLD) or (global_queue_length > 0):
         if active_vms < MAX_WORKERS:
             scale_out()
 
-    else if avg_load < SCALE_IN_THRESHOLD AND active_vms > MIN_WORKERS:
-        scale_in()
-
-function calculate_metrics(vm_loads):
-    total_load = 0
-    total_queued = 0
-    num_vms = size(vm_loads)
-
-    for vm_id, load_info IN vm_loads:
-        total_load += load_info.current_load
-        total_queued += load_info.queued
-
-    if num_vms == 0:
-        return 0, 0, 0
-
-    avg_load_ratio = total_load / (VM_CAPACITY * num_vms)
-    avg_queue_length = total_queued / num_vms
-
-    return avg_load_ratio, avg_queue_length, num_vms
+    # --- SCALE IN ---
+    elif (avg_cpu_util < CPU_SCALE_IN_THRESHOLD) and (active_vms > MIN_WORKERS):
+        vm_id = select_vm_to_scale_in()
+        if vm_id:
+            load_balancer.initiate_worker_removal(vm_id)
 
 function scale_out():
-    # Request new worker addition
     new_worker_id = provision_new_worker()
-    send_request_to_lb({ "type": "ADD_WORKER", "content": new_worker_id })
+    add_new_worker(new_worker_id)
+    drain_global_queue(get_current_vm_loads())
 
-function scale_in():
-    send_request_to_lb({ "type": "REMOVE_WORKER"})
+function select_vm_to_scale_in():
+    # Pick the least loaded non-draining worker
+    min_load = inf
+    candidate = null
 
+    for vm_id, load_info in load_balancer.vm_loads.items():
+        if vm_id in draining_workers:
+            continue
+        load = load_info.current_load + load_info.queued
+        if load < min_load:
+            min_load = load
+            candidate = vm_id
+
+    return candidate
