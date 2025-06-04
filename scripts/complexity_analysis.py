@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 import os
 from scipy.stats import linregress
 
-webserver_ip = "CNV-LoadBalancer-1819740148.us-east-1.elb.amazonaws.com"  # Change to your server's IP if needed
-webserver_port = 80
+webserver_ip = "localhost"  # Change to your server's IP if needed
+webserver_port = 8000
 server_url = f"http://{webserver_ip}:{webserver_port}"
 
 def send_request(game, params):
@@ -30,20 +30,22 @@ def analyze_complexity(game, params_list):
     for params in params_list:
         requestStatistics, elapsed_time = send_request(game, params)
         if requestStatistics is not None:
-            results.append({
+            result = {
                 "complexity": requestStatistics.get("complexity", 0),
                 "nblocks": requestStatistics.get("nblocks", 0),
                 "nmethod": requestStatistics.get("nmethod", 0),
                 "ninsts": requestStatistics.get("ninsts", 0),
                 "ndataWrites": requestStatistics.get("ndataWrites", 0),
                 "ndataReads": requestStatistics.get("ndataReads", 0),
-                "elapsed_time": elapsed_time
-            })
+                "elapsed_time": elapsed_time,
+            }
+            results.append(result | params)  
+            
         else:
             print(f"Failed to get complexity for params: {params}")
     return pd.DataFrame(results)
 
-def plot_results(df, game_name):
+def plot_results(df, game_name, relevant_param):
     """
     Creates and saves a separate plot for each metric vs elapsed time.
     Includes a linear regression line and R² value.
@@ -57,7 +59,7 @@ def plot_results(df, game_name):
     r2_results = {}
 
     for metric in metrics:
-        x = df_sorted['elapsed_time'].values
+        x = df_sorted[relevant_param].values
         y = df_sorted[metric].values
 
         # Linear regression
@@ -70,9 +72,9 @@ def plot_results(df, game_name):
         plt.figure(figsize=(10, 6))
         plt.plot(x, y, 'o', alpha=0.7, label=f'{metric} (data)')
         plt.plot(x, y_pred, 'r-', label=f'Linear Fit: y={slope:.2f}x + {intercept:.2f}\nR² = {r_squared:.4f}')
-        plt.xlabel('Elapsed Time (s)')
+        plt.xlabel(f"{relevant_param} ({game_name})")
         plt.ylabel(metric)
-        plt.title(f'{metric} vs Elapsed Time - {game_name}')
+        plt.title(f'{metric} vs {relevant_param} - {game_name}')
         plt.grid(True, alpha=0.3)
         plt.legend()
         plt.tight_layout()
@@ -128,9 +130,13 @@ def main():
 
     all_r2 = {}
 
+    relevant_param = {"capturetheflag": "numBlueAgents", 
+                      "fifteenpuzzle": "shuffles", 
+                      "gameoflife": "iterations"
+                      }
     for game, params in params_list.items():
         df = analyze_complexity(game, params)
-        r2_results = plot_results(df, game)
+        r2_results = plot_results(df, game, relevant_param[game])
         all_r2[game] = r2_results
 
     # Save R² table as image
