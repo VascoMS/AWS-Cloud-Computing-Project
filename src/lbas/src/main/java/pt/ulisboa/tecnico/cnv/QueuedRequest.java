@@ -3,7 +3,6 @@ package pt.ulisboa.tecnico.cnv;
 import com.sun.net.httpserver.HttpExchange;
 import lombok.Getter;
 
-import java.net.http.HttpResponse;
 import java.util.concurrent.CompletableFuture;
 
 @Getter

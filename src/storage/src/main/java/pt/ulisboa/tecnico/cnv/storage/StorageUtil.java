@@ -13,7 +13,6 @@ import java.util.stream.Collectors;
 
 public class StorageUtil {
 
-    private static final String OUTPUT_FILE = "statistics.json";
 
     public static final String TABLE_NAME = "metrics";
 

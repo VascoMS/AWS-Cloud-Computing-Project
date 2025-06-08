@@ -15,9 +15,9 @@ import java.util.Map;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 
-/*import pt.ulisboa.tecnico.cnv.javassist.tools.ICount;
+import pt.ulisboa.tecnico.cnv.javassist.tools.ICount;
 import pt.ulisboa.tecnico.cnv.javassist.model.Statistics;
-import pt.ulisboa.tecnico.cnv.storage.StorageUtil;*/
+import pt.ulisboa.tecnico.cnv.storage.StorageUtil;
 
 
 public class GameOfLifeHandler implements HttpHandler, RequestHandler<Map<String, String>, String> {
@@ -127,11 +127,11 @@ public class GameOfLifeHandler implements HttpHandler, RequestHandler<Map<String
         os.write(response.getBytes());
         os.close();
 
-        /*Statistics requestStatistics = ICount.getThreadStatistics();
+        Statistics requestStatistics = ICount.getThreadStatistics();
         if(storeMetrics) {
             StorageUtil.storeMetrics(parameters, requestStatistics, "gameoflife");
         }
-        ICount.clearThreadStatistics();*/
+        ICount.clearThreadStatistics();
     }
 
     /**
