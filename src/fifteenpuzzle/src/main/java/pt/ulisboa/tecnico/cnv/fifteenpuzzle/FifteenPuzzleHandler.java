@@ -13,10 +13,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
-import pt.ulisboa.tecnico.cnv.javassist.tools.ICount;
+/*import pt.ulisboa.tecnico.cnv.javassist.tools.ICount;
 import pt.ulisboa.tecnico.cnv.javassist.model.Statistics;
 
-import pt.ulisboa.tecnico.cnv.storage.StorageUtil;
+import pt.ulisboa.tecnico.cnv.storage.StorageUtil;*/
 
 public class FifteenPuzzleHandler implements HttpHandler, RequestHandler<Map<String, String>, String> {
 
@@ -52,6 +52,8 @@ public class FifteenPuzzleHandler implements HttpHandler, RequestHandler<Map<Str
         // Handling CORS.
         he.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
 
+        System.out.println("Handling request: " + he.getRequestURI());
+
         if ("OPTIONS".equalsIgnoreCase(he.getRequestMethod())) {
             he.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, OPTIONS");
             he.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type,Authorization");
@@ -66,6 +68,7 @@ public class FifteenPuzzleHandler implements HttpHandler, RequestHandler<Map<Str
 
         int size = Integer.parseInt(parameters.get("size"));
         int shuffles = Integer.parseInt(parameters.get("shuffles"));
+        boolean storeMetrics = Boolean.parseBoolean(parameters.get("storeMetrics"));
 
         String response = handleWorkload(size, shuffles);
 
@@ -74,10 +77,12 @@ public class FifteenPuzzleHandler implements HttpHandler, RequestHandler<Map<Str
         os.write(response.getBytes());
         os.close();
 
-        Statistics requestStatistics = ICount.getThreadStatistics();
-        // requestStatistics.computeComplexity(); //This complexity score is only useful when we have multiple metrics
-        StorageUtil.storeStatistics(parameters, requestStatistics, "FifteenPuzzle");
-        ICount.clearThreadStatistics();
+        /*Statistics requestStatistics = ICount.getThreadStatistics();
+
+        if(storeMetrics) {
+            StorageUtil.storeMetrics(parameters, requestStatistics, "fifteenpuzzle");
+        }
+        ICount.clearThreadStatistics();*/
 
     }
 

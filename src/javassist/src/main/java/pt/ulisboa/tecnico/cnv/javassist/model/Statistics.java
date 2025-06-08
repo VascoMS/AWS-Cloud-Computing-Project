@@ -1,5 +1,8 @@
 package pt.ulisboa.tecnico.cnv.javassist.model;
 
+
+import java.util.Map;
+
 public class Statistics {
     /**
      * Number of executed basic blocks.
@@ -59,8 +62,17 @@ public class Statistics {
     }
     public void incrementNdataWrites(){ndataWrites++;}
     public void incrementNdataReads(){ndataReads++;}
-    public long computeComplexity(){
-        complexity = ninsts + 2*ndataReads +3*ndataWrites + 5*nmethod;
-        return complexity;
+    public long computeComplexity(String game) {
+        return computeComplexity(game, this.nmethod, this.ndataReads);
+    }
+
+    public static long computeComplexity(String game, long nmethod, long ndataReads) {
+        if (game.equals("fifteenpuzzle")){
+            return Math.round((ndataReads / 44.056) * 1.56 + nmethod);
+        } else if (game.equals("capturetheflag")){
+            return Math.round((ndataReads / 2.6133) * 3.8 + nmethod);
+        } else {
+            return Math.round((ndataReads / 39.8408) * 8.83 + nmethod);
+        }
     }
 }

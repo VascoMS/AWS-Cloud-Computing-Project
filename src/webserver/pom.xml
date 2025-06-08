@@ -29,12 +29,12 @@
           <version>1.0.0-SNAPSHOT</version>
           <scope>compile</scope>
       </dependency>
-      <dependency>
+      <!--<dependency>
           <groupId>pt.ulisboa.tecnico.cnv</groupId>
           <artifactId>JavassistWrapper</artifactId>
           <version>1.0</version>
           <scope>compile</scope>
-      </dependency>
+      </dependency>-->
 
   </dependencies>
 

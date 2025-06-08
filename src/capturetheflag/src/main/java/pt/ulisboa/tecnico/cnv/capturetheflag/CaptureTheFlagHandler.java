@@ -12,10 +12,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import pt.ulisboa.tecnico.cnv.javassist.tools.ICount;
+/*import pt.ulisboa.tecnico.cnv.javassist.tools.ICount;
 import pt.ulisboa.tecnico.cnv.javassist.model.Statistics;
 
-import pt.ulisboa.tecnico.cnv.storage.StorageUtil;
+import pt.ulisboa.tecnico.cnv.storage.StorageUtil;*/
 
 public class CaptureTheFlagHandler implements HttpHandler, RequestHandler<Map<String, String>, String> {
 
@@ -42,6 +42,8 @@ public class CaptureTheFlagHandler implements HttpHandler, RequestHandler<Map<St
         // Handling CORS.
         he.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
 
+        System.out.println("Handling request: " + he.getRequestURI());
+
         if ("OPTIONS".equalsIgnoreCase(he.getRequestMethod())) {
             he.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, OPTIONS");
             he.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type,Authorization");
@@ -58,6 +60,7 @@ public class CaptureTheFlagHandler implements HttpHandler, RequestHandler<Map<St
         int numBlueAgents = Integer.parseInt(parameters.get("numBlueAgents"));
         int numRedAgents = Integer.parseInt(parameters.get("numRedAgents"));
         char flagPlacementType = parameters.get("flagPlacementType").toUpperCase().charAt(0);
+        boolean storeMetrics = Boolean.parseBoolean(parameters.get("storeMetrics"));
 
         if (!validateInputs(gridSize, numBlueAgents, numRedAgents, flagPlacementType)) {
             String response = "Invalid input. Please provide a valid grid size, number of blue agents, number of red agents and flag placement type (A, B or C).";
@@ -75,10 +78,11 @@ public class CaptureTheFlagHandler implements HttpHandler, RequestHandler<Map<St
         os.write(response.getBytes());
         os.close();
 
-        Statistics requestStatistics = ICount.getThreadStatistics();
-        // requestStatistics.computeComplexity(); //This complexity score is only useful when we have multiple metrics
-        StorageUtil.storeStatistics(parameters, requestStatistics, "CaptureTheFlag");
-        ICount.clearThreadStatistics();
+        /*Statistics requestStatistics = ICount.getThreadStatistics();
+        if(storeMetrics) {
+            StorageUtil.storeMetrics(parameters, requestStatistics, "capturetheflag");
+        }
+        ICount.clearThreadStatistics();*/
     }
 
     /**

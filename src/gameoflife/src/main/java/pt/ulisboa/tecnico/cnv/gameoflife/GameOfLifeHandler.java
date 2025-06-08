@@ -15,9 +15,9 @@ import java.util.Map;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 
-import pt.ulisboa.tecnico.cnv.javassist.tools.ICount;
+/*import pt.ulisboa.tecnico.cnv.javassist.tools.ICount;
 import pt.ulisboa.tecnico.cnv.javassist.model.Statistics;
-import pt.ulisboa.tecnico.cnv.storage.StorageUtil;
+import pt.ulisboa.tecnico.cnv.storage.StorageUtil;*/
 
 
 public class GameOfLifeHandler implements HttpHandler, RequestHandler<Map<String, String>, String> {
@@ -88,6 +88,8 @@ public class GameOfLifeHandler implements HttpHandler, RequestHandler<Map<String
         // Handling CORS.
         he.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
 
+        System.out.println("Handling request: " + he.getRequestURI());
+
         if ("OPTIONS".equalsIgnoreCase(he.getRequestMethod())) {
             he.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, OPTIONS");
             he.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type,Authorization");
@@ -101,6 +103,7 @@ public class GameOfLifeHandler implements HttpHandler, RequestHandler<Map<String
         Map<String, String> parameters = queryToMap(query);
 
         int iterations = Integer.parseInt(parameters.get("iterations"));
+        boolean storeMetrics = Boolean.parseBoolean(parameters.get("storeMetrics"));
         String mapFilename = parameters.get("mapFilename");
 
         int[][] map;
@@ -124,10 +127,11 @@ public class GameOfLifeHandler implements HttpHandler, RequestHandler<Map<String
         os.write(response.getBytes());
         os.close();
 
-        Statistics requestStatistics = ICount.getThreadStatistics();
-        // requestStatistics.computeComplexity(); //This complexity score is only useful when we have multiple metrics
-        StorageUtil.storeStatistics(parameters, requestStatistics, "GameOfLife");
-        ICount.clearThreadStatistics();
+        /*Statistics requestStatistics = ICount.getThreadStatistics();
+        if(storeMetrics) {
+            StorageUtil.storeMetrics(parameters, requestStatistics, "gameoflife");
+        }
+        ICount.clearThreadStatistics();*/
     }
 
     /**
@@ -159,6 +163,7 @@ public class GameOfLifeHandler implements HttpHandler, RequestHandler<Map<String
             return;
         }
         String mapFilename = args[0];
+
 
         int[][] intMap;
         try (InputStream mapFileInputStream = GameOfLifeHandler.class.getClassLoader().getResourceAsStream(mapFilename)) {

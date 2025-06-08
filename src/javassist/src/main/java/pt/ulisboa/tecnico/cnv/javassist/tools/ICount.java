@@ -60,18 +60,15 @@ public class ICount extends CodeDumper {
         // Count method invocations
         behavior.insertAfter(String.format("%s.incBehavior(\"%s\");", ICount.class.getName(), behavior.getLongName()));
 
-//        // Instrument data accesses (field read/write)
-//        behavior.instrument(new ExprEditor() {
-//            @Override
-//            public void edit(FieldAccess f) throws CannotCompileException {
-//                if (f.isReader()) {
-//                    f.replace(String.format("{ %s.incDataRead(); $_ = $proceed($$); }", ICount.class.getName()));
-//                }
-//                else if (f.isWriter()){
-//                    f.replace(String.format("{ %s.incDataWrite(); $proceed($$); }", ICount.class.getName()));
-//                }
-//            }
-//        });
+        // Instrument data accesses (field read)
+        behavior.instrument(new ExprEditor() {
+            @Override
+            public void edit(FieldAccess f) throws CannotCompileException {
+                if (f.isReader()) {
+                    f.replace(String.format("{ %s.incDataRead(); $_ = $proceed($$); }", ICount.class.getName()));
+                }
+            }
+        });
     }
 
 //    // Count number of basic blocks and instructions
