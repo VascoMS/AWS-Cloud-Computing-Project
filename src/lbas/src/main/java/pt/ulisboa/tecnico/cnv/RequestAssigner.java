@@ -9,6 +9,8 @@ import pt.ulisboa.tecnico.cnv.strategies.VmSelectionStrategy;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class RequestAssigner implements HttpHandler {
 
@@ -16,6 +18,8 @@ public class RequestAssigner implements HttpHandler {
     private static final int RETRY_DELAY_MILLIS = 100;
 
     private final LoadBalancer loadBalancer;
+
+    private static final ExecutorService cleanupExecutor = Executors.newSingleThreadExecutor();
 
 
     public RequestAssigner(LoadBalancer loadBalancer) {
@@ -45,6 +49,9 @@ public class RequestAssigner implements HttpHandler {
             sendErrorResponse(exchange);
         } finally {
             recordMetrics(startTime);
+            if(loadBalancer.getGlobalQueueLength() > 0) {
+                cleanupExecutor.submit(loadBalancer::clearGlobal);
+            }
         }
     }
 

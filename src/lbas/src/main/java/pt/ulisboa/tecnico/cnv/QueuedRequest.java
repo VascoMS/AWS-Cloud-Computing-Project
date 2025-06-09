@@ -9,12 +9,14 @@ import java.util.concurrent.CompletableFuture;
 public class QueuedRequest {
     private final HttpExchange exchange;
     private final long estimatedComplexity;
+    private final boolean storeMetrics;
     private final CompletableFuture<WorkerResponse> future;
 
-    public QueuedRequest(HttpExchange exchange, long estimatedComplexity) {
+    public QueuedRequest(HttpExchange exchange, long estimatedComplexity, boolean storeMetrics) {
         this.exchange = exchange;
         this.estimatedComplexity = estimatedComplexity;
         this.future = new CompletableFuture<>();
+        this.storeMetrics = storeMetrics;
     }
 
 }

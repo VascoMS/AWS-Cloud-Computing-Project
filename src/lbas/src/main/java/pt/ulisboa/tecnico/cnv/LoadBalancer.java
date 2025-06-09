@@ -2,11 +2,14 @@ package pt.ulisboa.tecnico.cnv;
 
 import com.sun.net.httpserver.HttpExchange;
 import lombok.Getter;
+import lombok.Setter;
 import pt.ulisboa.tecnico.cnv.storage.StorageUtil;
+import pt.ulisboa.tecnico.cnv.strategies.SpreadingStrategy;
 import pt.ulisboa.tecnico.cnv.strategies.VmSelectionStrategy;
 
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Getter
@@ -17,13 +20,16 @@ public class LoadBalancer {
     public static final double PACK_THRESHOLD = 0.25;
 
     private final ConcurrentMap<String, Worker> workers = new ConcurrentHashMap<>();
-    private final Queue<QueuedRequest> globalOverflowQueue = new LinkedBlockingQueue<>();
+    final Queue<QueuedRequest> globalOverflowQueue = new ConcurrentLinkedQueue<>();
     private final ComplexityEstimator complexityEstimator;
     private final LambdaInvoker lambdaInvoker;
     private final AtomicLong requestCounter = new AtomicLong(0);
     private final ScheduledExecutorService queueProcessor;
     private final LoadBalancerMetrics metrics;
     private final HealthChecker healthChecker;
+    final AtomicBoolean clearingGlobal;
+    @Setter
+    private AutoscalerNotifier autoscalerNotifier;
 
     public enum WorkerRemovalStatus {
         PENDING, REMOVED
@@ -35,6 +41,7 @@ public class LoadBalancer {
         this.queueProcessor = Executors.newScheduledThreadPool(2);
         this.metrics = new LoadBalancerMetrics();
         this.healthChecker = new HealthChecker(workers);
+        this.clearingGlobal = new AtomicBoolean(false);
 
         StorageUtil.createTable();
 
@@ -48,7 +55,6 @@ public class LoadBalancer {
         return new RequestAssigner(this);
     }
 
-
     public String getLeastLoadedWorker(){
         return workers.values().stream().min(Comparator.comparing(Worker::getCurrentLoad)).get().getId();
     }
@@ -59,6 +65,21 @@ public class LoadBalancer {
         long requestComplexity = requestContext.complexity();
         List<String> candidateVmIds = strategy.selectVms(workers, requestComplexity, requestContext.avgLoad());
 
+        CompletableFuture<WorkerResponse> future = tryAssign(candidateVmIds, exchange, requestComplexity, requestContext.storeMetrics());
+
+        if (future != null) {
+            return future;
+        }
+
+        if(requestComplexity < LAMBDA_THRESHOLD) {
+            return lambdaInvoker.invokeLambda(exchange.getRequestURI());
+        }
+
+        return queueRequest(exchange, requestComplexity, requestContext.storeMetrics());
+    }
+
+    private CompletableFuture<WorkerResponse> tryAssign(List<String> candidateVmIds, HttpExchange exchange, long complexity, boolean storeMetrics) {
+
         for (String vmId : candidateVmIds) {
             Worker worker = workers.get(vmId);
             if (worker == null || !worker.isAvailable()) {
@@ -66,14 +87,14 @@ public class LoadBalancer {
                 continue; // Skip non-existent or known unhealthy workers
             }
 
-            if (worker.tryAssignLoad(requestComplexity)) {
+            if (worker.tryAssignLoad(complexity)) {
                 System.out.printf("Reserved load on VM %s for request with complexity %d.%n",
-                        vmId, requestContext.complexity());
+                        vmId, complexity);
 
-                CompletableFuture<WorkerResponse> future = HttpForwarder.forwardRequest(worker, exchange, requestContext.storeMetrics());
+                CompletableFuture<WorkerResponse> future = HttpForwarder.forwardRequest(worker, exchange, storeMetrics);
 
                 future.whenComplete((response, throwable) -> {
-                    worker.decreaseLoad(requestComplexity);
+                    worker.decreaseLoad(complexity);
                     if (throwable != null) {
                         worker.setUnhealthy();
                     }
@@ -83,18 +104,41 @@ public class LoadBalancer {
                 return future;
             }
         }
-
-        if(requestComplexity < LAMBDA_THRESHOLD) {
-            return lambdaInvoker.invokeLambda(exchange.getRequestURI());
-        }
-
-        return queueRequest(exchange, requestComplexity);
+        return null;
     }
 
-    public CompletableFuture<WorkerResponse> queueRequest(HttpExchange exchange, long complexity) {
-        QueuedRequest request = new QueuedRequest(exchange, complexity);
+    public void clearGlobal() {
+        boolean isClearing = clearingGlobal.getAndSet(true);
+        if (!isClearing && getGlobalQueueLength() > 0 ) {
+            QueuedRequest request = globalOverflowQueue.peek();
+            if (request != null) {
+                long requestComplexity = request.getEstimatedComplexity();
+                VmSelectionStrategy strategy = new SpreadingStrategy();
+                List<String> candidateVmIds = strategy.selectVms(workers, requestComplexity, calculateAverageLoad());
+                CompletableFuture<WorkerResponse> future = tryAssign(candidateVmIds, request.getExchange(), requestComplexity, request.isStoreMetrics());
+                if (future == null) {
+                    clearingGlobal.set(false);
+                    return;
+                }
+                future.whenComplete((response, throwable) -> {
+                    if (throwable != null) {
+                        request.getFuture().completeExceptionally(throwable);
+                    } else {
+                        request.getFuture().complete(response);
+                    }
+                });
+                globalOverflowQueue.poll();
+            }
+            clearingGlobal.set(false);
+        }
+    }
+
+    public CompletableFuture<WorkerResponse> queueRequest(HttpExchange exchange, long complexity, boolean storeMetrics) {
+        QueuedRequest request = new QueuedRequest(exchange, complexity, storeMetrics);
         globalOverflowQueue.add(request);
         System.out.println("Queued request " + request);
+        if(globalOverflowQueue.size() > VM_CAPACITY / 4)
+            autoscalerNotifier.wakeUp();
         return request.getFuture();
     }
 
