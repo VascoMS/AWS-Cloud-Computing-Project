@@ -70,12 +70,15 @@ public class StorageUtil {
     public static void storeMetrics(Map<String, String> parameters, Statistics statistics, String game) {
         String paramKey = serializeParameters(parameters);
 
+        long nmethod = statistics.getNmethod();
+        long ninsts = statistics.getNinsts();
+
         Map<String, AttributeValue> item = new HashMap<>();
         item.put(PARTITION_KEY, new AttributeValue(game)); // Partition key
         item.put(SORT_KEY, new AttributeValue(paramKey)); // Sort key
-        item.put("nmethod", new AttributeValue().withN(String.valueOf(statistics.getNmethod())));
-        item.put("nDataReads", new AttributeValue().withN(String.valueOf(statistics.getNdataReads())));
-        item.put("complexity", new AttributeValue().withN(String.valueOf(statistics.computeComplexity(game))));
+        item.put("nmethod", new AttributeValue().withN(String.valueOf(nmethod)));
+        item.put("ninsts", new AttributeValue().withN(String.valueOf(ninsts)));
+        item.put("complexity", new AttributeValue().withN(String.valueOf(statistics.computeComplexity(game, nmethod, ninsts))));
         PutItemRequest putRequest = new PutItemRequest()
                 .withTableName(TABLE_NAME)
                 .withItem(item);

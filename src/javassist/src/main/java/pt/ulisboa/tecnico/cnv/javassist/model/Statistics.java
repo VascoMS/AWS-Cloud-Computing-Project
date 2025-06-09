@@ -63,16 +63,16 @@ public class Statistics {
     public void incrementNdataWrites(){ndataWrites++;}
     public void incrementNdataReads(){ndataReads++;}
     public long computeComplexity(String game) {
-        return computeComplexity(game, this.nmethod, this.ndataReads);
+        return computeComplexity(game, this.nmethod, this.ninsts);
     }
 
-    public static long computeComplexity(String game, long nmethod, long ndataReads) {
+    public static long computeComplexity(String game, long nmethod, long ninsts) {
         if (game.equals("fifteenpuzzle")){
-            return Math.round((ndataReads / 44.056) * 1.56 + nmethod);
+            return Math.round((ninsts / 682.3358) * 3.3 + nmethod);
         } else if (game.equals("capturetheflag")){
-            return Math.round((ndataReads / 2.6133) * 3.8 + nmethod);
+            return Math.round((ninsts / 56.9413) * 2.72 + nmethod);
         } else {
-            return Math.round((ndataReads / 39.8408) * 8.83 + nmethod);
+            return Math.round((ninsts / 541.5605) * 7.85 + nmethod);
         }
     }
 }

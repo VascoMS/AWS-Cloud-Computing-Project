@@ -61,21 +61,24 @@ public class ICount extends CodeDumper {
         behavior.insertAfter(String.format("%s.incBehavior(\"%s\");", ICount.class.getName(), behavior.getLongName()));
 
         // Instrument data accesses (field read)
-        behavior.instrument(new ExprEditor() {
+        /*behavior.instrument(new ExprEditor() {
             @Override
             public void edit(FieldAccess f) throws CannotCompileException {
                 if (f.isReader()) {
                     f.replace(String.format("{ %s.incDataRead(); $_ = $proceed($$); }", ICount.class.getName()));
                 }
+                else if (f.isWriter()){
+                    f.replace(String.format("{ %s.incDataWrite(); $proceed($$); }", ICount.class.getName()));
+                }
             }
-        });
+        });*/
     }
 
-//    // Count number of basic blocks and instructions
-//    @Override
-//    protected void transform(BasicBlock block) throws CannotCompileException {
-//        super.transform(block);
-//        block.behavior.insertAt(block.line, String.format("%s.incBasicBlock(%s, %s);", ICount.class.getName(), block.getPosition(), block.getLength()));
-//    }
+    // Count number of basic blocks and instructions
+    @Override
+    protected void transform(BasicBlock block) throws CannotCompileException {
+        super.transform(block);
+        block.behavior.insertAt(block.line, String.format("%s.incBasicBlock(%s, %s);", ICount.class.getName(), block.getPosition(), block.getLength()));
+   }
 
 }

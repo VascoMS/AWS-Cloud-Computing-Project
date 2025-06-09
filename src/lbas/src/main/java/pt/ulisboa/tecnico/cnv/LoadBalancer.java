@@ -14,8 +14,8 @@ import java.util.concurrent.atomic.AtomicLong;
 
 @Getter
 public class LoadBalancer {
-    public static final long VM_CAPACITY = 44153067L;
-    public static final long LAMBDA_THRESHOLD = 756005L;
+    public static final long VM_CAPACITY = 204890767L; // 10 seconds on capture the flag complexity scale
+    public static final long LAMBDA_THRESHOLD = 1000000L; // 0.27 seconds on the capture the flag complexity scale
     public static final double SPREAD_THRESHOLD = 0.85;
     public static final double PACK_THRESHOLD = 0.25;
 
@@ -30,10 +30,6 @@ public class LoadBalancer {
     final AtomicBoolean clearingGlobal;
     @Setter
     private AutoscalerNotifier autoscalerNotifier;
-
-    public enum WorkerRemovalStatus {
-        PENDING, REMOVED
-    }
 
     public LoadBalancer() throws InterruptedException {
         this.complexityEstimator = new ComplexityEstimator();
@@ -171,17 +167,17 @@ public class LoadBalancer {
         }
     }
 
-    public WorkerRemovalStatus finalizeWorkerRemoval(String workerId) {
+    public boolean finalizeWorkerRemoval(String workerId) {
         Worker worker = workers.get(workerId);
-        if (worker == null) return WorkerRemovalStatus.REMOVED;
 
         long load = worker.getCurrentLoad();
         if (load > 0) {
-            return WorkerRemovalStatus.PENDING;
+            return false;
         }
-
-        workers.remove(workerId);
-        return WorkerRemovalStatus.REMOVED;
+        else{
+            workers.remove(workerId);
+            return true;
+        }
     }
 
     public int getGlobalQueueLength() {

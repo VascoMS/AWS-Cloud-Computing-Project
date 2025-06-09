@@ -4,6 +4,11 @@ import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
 import com.amazonaws.services.ec2.AmazonEC2;
 import com.amazonaws.services.ec2.AmazonEC2ClientBuilder;
+import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
+import com.amazonaws.services.ec2.model.RunInstancesRequest;
+import com.amazonaws.services.ec2.model.RunInstancesResult;
+import com.amazonaws.services.ec2.model.DescribeInstancesResult;
+import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.Instance;
 import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
@@ -20,6 +25,11 @@ import java.util.Set;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.io.IOException;
+
+
 
 public class AutoScaler implements Runnable, AutoscalerNotifier{
     private static final double SCALE_OUT_CPU_THRESHOLD = 0.85;
@@ -27,6 +37,9 @@ public class AutoScaler implements Runnable, AutoscalerNotifier{
     private static final int MIN_WORKERS = 1;
     private static final int MAX_WORKERS = 5;
     private static final String AWS_REGION = "us-east-1";
+    private String AWS_AMI_ID;
+    private static final String AWS_KEY_NAME = "mykeypair";
+    private static final String AWS_SEC_GROUP_ID = "sg-bacf59c2";
     private static final long OBS_TIME = 1000 * 60 * 5;
     private static final long POLL_INTERVAL_MS = 1000 * 60;
     private static final long SCALING_TIMEOUT = 1000 * 60 * 5;
@@ -45,6 +58,7 @@ public class AutoScaler implements Runnable, AutoscalerNotifier{
         this.loadBalancer = loadBalancer;
         this.ec2 = AmazonEC2ClientBuilder.standard().withCredentials(new EnvironmentVariableCredentialsProvider()).build();
         this.cloudWatch = AmazonCloudWatchClientBuilder.standard().withRegion(AWS_REGION).withCredentials(new EnvironmentVariableCredentialsProvider()).build();
+        this.AWS_AMI_ID = get_ami_id();
         // Create first worker here if needed
         initializeDefaultWorkers();
     }
@@ -158,22 +172,59 @@ public class AutoScaler implements Runnable, AutoscalerNotifier{
         }
     }
 
-    private String createNewWorker() {
-        latestScalingTimestamp = new Date().getTime();
-        return "vm-id-placeholder";
-    }
-
     private void scaleOut() {
-        String newWorkerId = createNewWorker();
-        // TODO: Register new worker with LoadBalancer if needed
-        System.out.println("Scaled out: started worker " + newWorkerId);
+        RunInstancesRequest runInstancesRequest = new RunInstancesRequest();
+        runInstancesRequest.withImageId(AWS_AMI_ID)
+                .withInstanceType("t2.micro")
+                .withMinCount(1)
+                .withMaxCount(1)
+                .withKeyName(AWS_KEY_NAME)
+                .withSecurityGroupIds(AWS_SEC_GROUP_ID);
+        RunInstancesResult runInstancesResult = ec2.runInstances(runInstancesRequest);
+        String newInstanceId = runInstancesResult.getReservation().getInstances().get(0).getInstanceId();
+
+        DescribeInstancesRequest describeRequest = new DescribeInstancesRequest()
+                .withInstanceIds(newInstanceId);
+
+        DescribeInstancesResult describeResult;
+        Instance updatedInstance;
+
+        do {
+            describeResult = ec2.describeInstances(describeRequest);
+            updatedInstance = describeResult.getReservations().get(0).getInstances().get(0);
+            try {
+                Thread.sleep(2000); // Wait a bit before checking again
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt(); // Preserve interrupt status
+                System.err.println("Thread was interrupted. Exiting wait loop.");
+                break;
+            }
+        } while (updatedInstance.getPublicIpAddress() == null);
+
+        String publicIp = updatedInstance.getPublicIpAddress();
+
+        loadBalancer.addNewWorker(newInstanceId, publicIp, 8000);
     }
 
     private void scaleIn() {
         String vmId = loadBalancer.getLeastLoadedWorker();
         if (vmId != null) {
-            loadBalancer.initiateWorkerRemoval(vmId);
+            loadBalancer.initiateWorkerRemoval(vmId); // Sets worker to Draining status (stops receiving new requests)
             System.out.println("Scaled in: removing worker " + vmId);
+        }
+        while(!loadBalancer.finalizeWorkerRemoval(vmId));
+        TerminateInstancesRequest termInstanceReq = new TerminateInstancesRequest();
+        termInstanceReq.withInstanceIds(vmId);
+        ec2.terminateInstances(termInstanceReq);
+    }
+
+    private String get_ami_id() {
+        String path = "~/cnv25-g32/aws-scripts/image.id";
+        try {
+            return new String(Files.readAllBytes(Paths.get(path))).trim();
+        } catch (IOException e) {
+            System.err.println("Failed to read AMI ID from file: " + e.getMessage());
+            return null;
         }
     }
 }

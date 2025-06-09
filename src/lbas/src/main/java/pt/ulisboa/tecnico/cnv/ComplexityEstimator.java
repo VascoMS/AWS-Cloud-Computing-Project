@@ -8,8 +8,8 @@ import java.util.Map;
 
 public class ComplexityEstimator {
     private static final int MAX_ENTRIES = 5000;
-    private static final double FIFTEEN_PUZZLE_SCALE_WEIGHT = 6.2;
-    private static final double GAME_OF_LIFE_SCALE_WEIGHT = 15.1;
+    private static final double FIFTEEN_PUZZLE_SCALE_WEIGHT = 3.54;
+    private static final double GAME_OF_LIFE_SCALE_WEIGHT = 1.84;
 
     public record ComplexityEstimate(long value, boolean storeMetrics) {}
 
@@ -66,9 +66,9 @@ public class ComplexityEstimator {
                 double num_shuffles = Double.parseDouble(params.get("shuffles"));
                 double num_size = Double.parseDouble(params.get("size"));
 
-                double nDataReads = -14449130649.65 + 34439917.01 * num_shuffles + 1180278544.33 * num_size;
-                double nmethod = -276136068.04 + 1031843.96 * num_shuffles + 19322036.43 * num_size;
-                double complexity = (nDataReads / 44.0560) * 1.56 + nmethod;
+                double ninsts = -10098930362.82 + 119260738.56 * num_shuffles + 0 * num_size;
+                double nmethod = -14828529.82 + 175108.42 * num_shuffles + 0 * num_size;
+                double complexity = (ninsts / 682.3358) * 3.3 + nmethod;
                 return Math.round(complexity);
             }
 
@@ -81,30 +81,30 @@ public class ComplexityEstimator {
                 int cat_flagPlacementType_B = flagPlacement.equals("B") ? 1 : 0;
                 int cat_flagPlacementType_C = flagPlacement.equals("C") ? 1 : 0;
 
-                double nDataReads = -8741285.47
-                        + 413503.27 * gridSize
-                        + 413503.27 * numBlueAgents
-                        + 413503.27 * numRedAgents
-                        - 12534137.37 * cat_flagPlacementType_B
-                        - 6687443.83 * cat_flagPlacementType_C;
+                double ninsts = -188844810.08
+                        + 8917467.24 * gridSize
+                        + 8917467.24 * numBlueAgents
+                        + 8917467.24 * numRedAgents
+                        - 269574378.20 * cat_flagPlacementType_B
+                        - 142751327.33 * cat_flagPlacementType_C;
 
-                double nmethod = -3322991.17
+                double nmethod = -3322991.36
                         + 156958.27 * gridSize
                         + 156958.27 * numBlueAgents
                         + 156958.27 * numRedAgents
-                        - 4748919.43 * cat_flagPlacementType_B
-                        - 2518286.07 * cat_flagPlacementType_C;
+                        - 4748919.53 * cat_flagPlacementType_B
+                        - 2518286.13 * cat_flagPlacementType_C;
 
-                double complexity = (nDataReads / 2.6133) * 3.8 + nmethod;
+                double complexity = (ninsts / 56.9413) * 2.72 + nmethod;
                 return Math.round(complexity);
             }
 
             case "gameoflife": {
                 double iterations = Double.parseDouble(params.get("iterations"));
 
-                double nDataReads = 4.00 + 4024.00 * iterations;
+                double ninsts = 3870 + 54698 * iterations;
                 double nmethod = 11.00 + 101.00 * iterations;
-                double complexity = (nDataReads / 39.8408) * 8.83 + nmethod;
+                double complexity = (ninsts / 541.5605) * 7.85 + nmethod;
                 return Math.round(complexity);
             }
 
