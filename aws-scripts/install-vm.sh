@@ -8,16 +8,21 @@ ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEYPAR_PATH ec2-user@$(cat insta
 
 # Install latest Maven manually
 cmd='
-MAVEN_VERSION=3.9.4
+MAVEN_VERSION=3.9.10
 MAVEN_DIR=apache-maven-$MAVEN_VERSION
 cd /tmp
-curl -O https://dlcdn.apache.org/maven/maven-3/$MAVEN_VERSION/binaries/$MAVEN_DIR-bin.tar.gz
-sudo tar -xzf $MAVEN_DIR-bin.tar.gz -C /opt
-sudo ln -sfn /opt/$MAVEN_DIR /opt/maven
-echo "export M2_HOME=/opt/maven" | sudo tee /etc/profile.d/maven.sh
-echo "export PATH=\$M2_HOME/bin:\$PATH" | sudo tee -a /etc/profile.d/maven.sh
-sudo chmod +x /etc/profile.d/maven.sh
-source /etc/profile.d/maven.sh
+curl -O https://downloads.apache.org/maven/maven-3/$MAVEN_VERSION/binaries/$MAVEN_DIR-bin.tar.gz
+if file $MAVEN_DIR-bin.tar.gz | grep -q "gzip compressed data"; then
+  sudo tar -xzf $MAVEN_DIR-bin.tar.gz -C /opt
+  sudo ln -sfn /opt/$MAVEN_DIR /opt/maven
+  echo "export M2_HOME=/opt/maven" | sudo tee /etc/profile.d/maven.sh
+  echo "export PATH=\$M2_HOME/bin:\$PATH" | sudo tee -a /etc/profile.d/maven.sh
+  sudo chmod +x /etc/profile.d/maven.sh
+  source /etc/profile.d/maven.sh
+else
+  echo "ERROR: Download failed or not a gzip file"
+  exit 1
+fi
 '
 ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEYPAR_PATH ec2-user@$(cat instance.dns) "$cmd"
 

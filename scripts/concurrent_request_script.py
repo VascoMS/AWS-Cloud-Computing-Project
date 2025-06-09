@@ -4,7 +4,7 @@ import time
 
 # Server URL
 webserver_ip = "localhost"  # Change to your server's IP if needed
-server_url = f"http://{webserver_ip}:8000/capturetheflag?gridSize=30&numBlueAgents=29&numRedAgents=29&flagPlacementType=A"
+server_url = f"http://{webserver_ip}:8000/fifteenpuzzle?shuffles=104&size=10"
 
 # Function to make a single async request
 async def make_request(session, url):
@@ -32,7 +32,7 @@ async def make_request(session, url):
 # Main function to make multiple concurrent requests
 async def main():
     async with aiohttp.ClientSession() as session:
-        tasks = [make_request(session, server_url) for _ in range(2)]  # Adjust number of requests here
+        tasks = [make_request(session, server_url) for _ in range(3)]  # Adjust number of requests here
         responses = await asyncio.gather(*tasks)
         for i, response in enumerate(responses):
             print(f"\n--- Response {i + 1} ---")
