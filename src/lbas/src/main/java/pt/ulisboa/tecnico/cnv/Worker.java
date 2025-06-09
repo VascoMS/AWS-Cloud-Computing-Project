@@ -2,6 +2,7 @@ package pt.ulisboa.tecnico.cnv;
 
 import lombok.Getter;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class Worker {
@@ -18,6 +19,8 @@ public class Worker {
     private final String id;
     private final AtomicLong currentLoad = new AtomicLong(0);
     private volatile Status status = Status.AVAILABLE;
+    @Getter
+    private CompletableFuture<Void> terminateFuture;
 
     public Worker(String id, String host, int port) {
         this.id = id;
@@ -30,9 +33,17 @@ public class Worker {
     public boolean isAvailable() { return status == Status.AVAILABLE; }
     public boolean isUnhealthy() { return status == Status.UNHEALTHY; }
 
-    public void setDraining() { this.status = Status.DRAINING; }
+    public CompletableFuture<Void> setDraining() {
+        this.status = Status.DRAINING;
+        this.terminateFuture = new CompletableFuture<>();
+        return terminateFuture;
+    }
     public void setAvailable() { this.status = Status.AVAILABLE; }
     public void setUnhealthy() { this.status = Status.UNHEALTHY; }
+
+    public void completeTerminate(){
+        terminateFuture.complete(null);
+    }
 
     public void decreaseLoad(long load) { currentLoad.addAndGet(-load); }
 

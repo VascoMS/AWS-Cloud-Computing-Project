@@ -63,7 +63,7 @@ public class StorageUtil {
 
         Map<String, AttributeValue> metrics = dynamoDB.getItem(getItemRequest).getItem();
 
-        return metrics != null ? Long.parseLong(metrics.get("nmethod").getN()) : null;
+        return metrics != null ? Long.parseLong(metrics.get("complexity").getN()) : null;
 
     }
 

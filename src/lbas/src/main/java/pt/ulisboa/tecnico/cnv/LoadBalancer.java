@@ -91,6 +91,9 @@ public class LoadBalancer {
 
                 future.whenComplete((response, throwable) -> {
                     worker.decreaseLoad(complexity);
+                    if(worker.isDraining() && worker.getCurrentLoad() == 0) {
+                        worker.completeTerminate();
+                    }
                     if (throwable != null) {
                         worker.setUnhealthy();
                     }
@@ -160,11 +163,12 @@ public class LoadBalancer {
         workers.put(workerId, worker);
     }
 
-    public void initiateWorkerRemoval(String workerId) {
+    public CompletableFuture<Void> initiateWorkerRemoval(String workerId) {
         Worker worker = workers.get(workerId);
         if (worker != null) {
-            worker.setDraining();
+            return worker.setDraining();
         }
+        return null;
     }
 
     public boolean finalizeWorkerRemoval(String workerId) {

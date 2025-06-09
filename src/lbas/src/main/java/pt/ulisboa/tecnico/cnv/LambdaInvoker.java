@@ -1,50 +1,56 @@
 package pt.ulisboa.tecnico.cnv;
 
+import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
+import com.amazonaws.services.lambda.AWSLambda;
+import com.amazonaws.services.lambda.AWSLambdaClientBuilder;
+import com.amazonaws.services.lambda.model.InvokeRequest;
+import com.amazonaws.services.lambda.model.InvokeResult;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import software.amazon.awssdk.auth.credentials.EnvironmentVariableCredentialsProvider;
-import software.amazon.awssdk.core.SdkBytes;
-import software.amazon.awssdk.services.lambda.LambdaClient;
-import software.amazon.awssdk.services.lambda.model.InvokeRequest;
-import software.amazon.awssdk.services.lambda.model.InvokeResponse;
 
 import java.net.URI;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 public class LambdaInvoker {
 
-    private final LambdaClient awsLambda;
+    private final AWSLambda awsLambda;
     private final ObjectMapper mapper = new ObjectMapper();
 
     public LambdaInvoker() {
-        awsLambda = LambdaClient.builder().credentialsProvider(EnvironmentVariableCredentialsProvider.create()).build();
+        awsLambda = AWSLambdaClientBuilder.standard()
+                .withCredentials(new EnvironmentVariableCredentialsProvider())
+                .build();
     }
 
     public CompletableFuture<WorkerResponse> invokeLambda(URI uri) {
         String game = uri.getPath().split("/")[0];
         Map<String, String> params = queryToMap(uri.getRawQuery());
+
         return CompletableFuture.supplyAsync(() -> {
             try {
-
                 byte[] jsonPayload = mapper.writeValueAsBytes(params); // only params
 
-                InvokeRequest request = InvokeRequest.builder()
-                        .functionName(game) // game is the Lambda function name
-                        .payload(SdkBytes.fromByteArray(jsonPayload))
-                        .build();
+                InvokeRequest request = new InvokeRequest()
+                        .withFunctionName(game)
+                        .withPayload(ByteBuffer.wrap(jsonPayload));
 
-                InvokeResponse response = awsLambda.invoke(request);
+                InvokeResult result = awsLambda.invoke(request);
 
-                if (response.statusCode() != 200) {
-                    System.out.println("Error invoking Lambda: " + response.statusCode());
+                int statusCode = result.getStatusCode();
+                String payload = new String(result.getPayload().array(), StandardCharsets.UTF_8);
+
+                if (statusCode != 200) {
+                    System.out.println("Error invoking Lambda: " + statusCode);
                 }
 
-                return response;
+                return new WorkerResponse(statusCode, payload);
             } catch (Exception e) {
                 throw new RuntimeException("Error invoking Lambda function: " + game, e);
             }
-        }).thenApply(lambdaResponse -> new WorkerResponse(lambdaResponse.statusCode(), lambdaResponse.payload().asUtf8String()));
+        });
     }
 
     private Map<String, String> queryToMap(String query) {
@@ -62,7 +68,4 @@ public class LambdaInvoker {
         }
         return result;
     }
-
-
-
 }

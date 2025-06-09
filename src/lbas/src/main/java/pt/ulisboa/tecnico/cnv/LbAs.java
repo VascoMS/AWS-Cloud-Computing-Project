@@ -7,13 +7,21 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class LbAs {
+
+    private static final ExecutorService autoscalerExecutor = Executors.newSingleThreadExecutor();
+
     public static void main(String[] args) throws Exception {
         HttpServer server = HttpServer.create(new InetSocketAddress(8000), 0);
         server.setExecutor(java.util.concurrent.Executors.newCachedThreadPool());
         LoadBalancer loadBalancer = new LoadBalancer();
-
-        AutoScaler autoScaler = new AutoScaler(loadBalancer);
-        ExecutorService autoscalerExecutor = Executors.newSingleThreadExecutor();
+        String amiId;
+        if (args.length > 0) {
+            amiId = args[0];
+        } else {
+            System.out.println("Usage: LbAs <worker ami id>");
+            return;
+        }
+        AutoScaler autoScaler = new AutoScaler(loadBalancer, amiId);
         autoscalerExecutor.submit(autoScaler);
 
         loadBalancer.setAutoscalerNotifier(autoScaler);

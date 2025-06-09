@@ -7,7 +7,6 @@ import com.sun.net.httpserver.HttpServer;
 import pt.ulisboa.tecnico.cnv.capturetheflag.CaptureTheFlagHandler;
 import pt.ulisboa.tecnico.cnv.fifteenpuzzle.FifteenPuzzleHandler;
 import pt.ulisboa.tecnico.cnv.gameoflife.GameOfLifeHandler;
-/*import pt.ulisboa.tecnico.cnv.storage.StorageUtil;*/
 
 public class WebServer {
     public static void main(String[] args) throws Exception {

@@ -18,10 +18,12 @@ import com.amazonaws.services.cloudwatch.model.Datapoint;
 import com.amazonaws.services.cloudwatch.model.GetMetricStatisticsRequest;
 import pt.ulisboa.tecnico.cnv.util.EMACalculator;
 
+import java.time.Duration;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.*;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -37,7 +39,7 @@ public class AutoScaler implements Runnable, AutoscalerNotifier{
     private static final int MIN_WORKERS = 1;
     private static final int MAX_WORKERS = 5;
     private static final String AWS_REGION = "us-east-1";
-    private String AWS_AMI_ID;
+    private final String amiId;
     private static final String AWS_KEY_NAME = "mykeypair";
     private static final String AWS_SEC_GROUP_ID = "sg-bacf59c2";
     private static final long OBS_TIME = 1000 * 60 * 5;
@@ -52,17 +54,18 @@ public class AutoScaler implements Runnable, AutoscalerNotifier{
     private final ReentrantLock lock = new ReentrantLock();
     private final Condition condition = lock.newCondition();
     private long latestScalingTimestamp;
+    private final ScheduledExecutorService scheduler;
 
-
-    public AutoScaler(LoadBalancer loadBalancer) {
+    public AutoScaler(LoadBalancer loadBalancer, String amiId) {
         this.loadBalancer = loadBalancer;
         this.ec2 = AmazonEC2ClientBuilder.standard().withCredentials(new EnvironmentVariableCredentialsProvider()).build();
         this.cloudWatch = AmazonCloudWatchClientBuilder.standard().withRegion(AWS_REGION).withCredentials(new EnvironmentVariableCredentialsProvider()).build();
-        this.AWS_AMI_ID = get_ami_id();
+        this.amiId = amiId;
+        this.scheduler = Executors.newScheduledThreadPool(1);
+        this.latestScalingTimestamp = System.currentTimeMillis();
         // Create first worker here if needed
         initializeDefaultWorkers();
     }
-
 
     @Override
     public void run() {
@@ -174,57 +177,57 @@ public class AutoScaler implements Runnable, AutoscalerNotifier{
 
     private void scaleOut() {
         RunInstancesRequest runInstancesRequest = new RunInstancesRequest();
-        runInstancesRequest.withImageId(AWS_AMI_ID)
+        this.latestScalingTimestamp = System.currentTimeMillis();
+        runInstancesRequest.withImageId(amiId)
                 .withInstanceType("t2.micro")
                 .withMinCount(1)
                 .withMaxCount(1)
                 .withKeyName(AWS_KEY_NAME)
                 .withSecurityGroupIds(AWS_SEC_GROUP_ID);
         RunInstancesResult runInstancesResult = ec2.runInstances(runInstancesRequest);
-        String newInstanceId = runInstancesResult.getReservation().getInstances().get(0).getInstanceId();
+        String newInstanceId = runInstancesResult.getReservation().getInstances().getFirst().getInstanceId();
 
-        DescribeInstancesRequest describeRequest = new DescribeInstancesRequest()
-                .withInstanceIds(newInstanceId);
+        waitForPublicIp(newInstanceId, Duration.ofSeconds(30))
+                .thenAccept(ip -> loadBalancer.addNewWorker(newInstanceId, ip, 8000));
 
-        DescribeInstancesResult describeResult;
-        Instance updatedInstance;
-
-        do {
-            describeResult = ec2.describeInstances(describeRequest);
-            updatedInstance = describeResult.getReservations().get(0).getInstances().get(0);
-            try {
-                Thread.sleep(2000); // Wait a bit before checking again
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt(); // Preserve interrupt status
-                System.err.println("Thread was interrupted. Exiting wait loop.");
-                break;
-            }
-        } while (updatedInstance.getPublicIpAddress() == null);
-
-        String publicIp = updatedInstance.getPublicIpAddress();
-
-        loadBalancer.addNewWorker(newInstanceId, publicIp, 8000);
     }
+
+    public CompletableFuture<String> waitForPublicIp(String instanceId, Duration timeout) {
+        CompletableFuture<String> future = new CompletableFuture<>();
+        long deadline = System.currentTimeMillis() + timeout.toMillis();
+
+        Runnable pollTask = () -> {
+            DescribeInstancesRequest describeRequest = new DescribeInstancesRequest()
+                    .withInstanceIds(instanceId);
+
+            DescribeInstancesResult describeResult = ec2.describeInstances(describeRequest);
+            Instance instance = describeResult.getReservations().getFirst().getInstances().getFirst();
+
+            if (instance != null && instance.getPublicIpAddress() != null) {
+                future.complete(instance.getPublicIpAddress());
+                scheduler.shutdown();
+            } else if (System.currentTimeMillis() >= deadline) {
+                future.completeExceptionally(new TimeoutException("Timed out waiting for public IP"));
+                scheduler.shutdown();
+            }
+        };
+
+        scheduler.scheduleAtFixedRate(pollTask, 0, 2, TimeUnit.SECONDS);
+        return future;
+    }
+
 
     private void scaleIn() {
         String vmId = loadBalancer.getLeastLoadedWorker();
+        this.latestScalingTimestamp = System.currentTimeMillis();
         if (vmId != null) {
-            loadBalancer.initiateWorkerRemoval(vmId); // Sets worker to Draining status (stops receiving new requests)
-            System.out.println("Scaled in: removing worker " + vmId);
-        }
-        while(!loadBalancer.finalizeWorkerRemoval(vmId));
-        TerminateInstancesRequest termInstanceReq = new TerminateInstancesRequest();
-        termInstanceReq.withInstanceIds(vmId);
-        ec2.terminateInstances(termInstanceReq);
-    }
-
-    private String get_ami_id() {
-        String path = "~/cnv25-g32/aws-scripts/image.id";
-        try {
-            return new String(Files.readAllBytes(Paths.get(path))).trim();
-        } catch (IOException e) {
-            System.err.println("Failed to read AMI ID from file: " + e.getMessage());
-            return null;
+            loadBalancer.initiateWorkerRemoval(vmId).thenRun(() -> {
+                TerminateInstancesRequest termInstanceReq = new TerminateInstancesRequest();
+                termInstanceReq.withInstanceIds(vmId);
+                ec2.terminateInstances(termInstanceReq);
+                loadBalancer.finalizeWorkerRemoval(vmId);
+                System.out.println("Scaled in: removing worker " + vmId);
+            }); // Sets worker to Draining status (stops receiving new requests)
         }
     }
 }
