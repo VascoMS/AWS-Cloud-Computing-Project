@@ -1,0 +1,39 @@
+reads:
+
+(cnv) tiago@DESKTOP-V2ERGIF:~/old-cnv/cnv25-g32/scripts (master)$ python instrumentation_analysis.py
+Average elapsed time for capturetheflag: 0.1995 seconds
+Average elapsed time for fifteenpuzzle: 0.0376 seconds
+Average elapsed time for gameoflife: 0.3830 seconds
+(cnv) tiago@DESKTOP-V2ERGIF:~/old-cnv/cnv25-g32/scripts (master)$ python instrumentation_analysis.py
+Average elapsed time for capturetheflag: 0.1777 seconds
+Average elapsed time for fifteenpuzzle: 0.0349 seconds
+Average elapsed time for gameoflife: 0.3651 seconds
+(cnv) tiago@DESKTOP-V2ERGIF:~/old-cnv/cnv25-g32/scripts (master)$ python instrumentation_analysis.py
+Average elapsed time for capturetheflag: 0.1799 seconds
+Average elapsed time for fifteenpuzzle: 0.0370 seconds
+Average elapsed time for gameoflife: 0.2987 seconds
+
+
+writes:
+
+(cnv) tiago@DESKTOP-V2ERGIF:~/old-cnv/cnv25-g32/scripts (master)$ python instrumentation_analysis.py
+Average elapsed time for capturetheflag: 0.0418 seconds
+Average elapsed time for fifteenpuzzle: 0.0073 seconds
+Average elapsed time for gameoflife: 0.0291 seconds
+(cnv) tiago@DESKTOP-V2ERGIF:~/old-cnv/cnv25-g32/scripts (master)$ python instrumentation_analysis.py
+Average elapsed time for capturetheflag: 0.0314 seconds
+Average elapsed time for fifteenpuzzle: 0.0063 seconds
+Average elapsed time for gameoflife: 0.0273 seconds
+(cnv) tiago@DESKTOP-V2ERGIF:~/old-cnv/cnv25-g32/scripts (master)$ python instrumentation_analysis.py
+Average elapsed time for capturetheflag: 0.0298 seconds
+Average elapsed time for fifteenpuzzle: 0.0055 seconds
+Average elapsed time for gameoflife: 0.0270 seconds
+
+
+avg:
+
+| Game           | Reads (s) | Writes (s) |
+| -------------- | --------- | ---------- |
+| capturetheflag | 0.1857    | 0.0343     |
+| fifteenpuzzle  | 0.0365    | 0.0064     |
+| gameoflife     | 0.3489    | 0.0278     |
