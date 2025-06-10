@@ -2,8 +2,8 @@
 
 source config.sh
 
-# Install Java 11 (Amazon Corretto)
-cmd="sudo yum update -y; sudo yum install java-11-amazon-corretto.x86_64 -y;"
+# Install Java 17 and set as default
+cmd="sudo yum update -y; sudo yum install java-17-amazon-corretto.x86_64 -y; sudo alternatives --set java /usr/lib/jvm/java-17-amazon-corretto.x86_64/bin/java;"
 ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEYPAR_PATH ec2-user@$(cat instance.dns) "$cmd"
 
 # Install latest Maven manually
@@ -36,6 +36,7 @@ scp -r -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEYPAR_PATH \
   $DIR/../src/javassist \
   $DIR/../src/storage \
   $DIR/../src/webserver \
+  $DIR/../src/lbas \
   $DIR/../src/pom.xml \
   $DIR/../aws-scripts/config.sh \
   ec2-user@$(cat instance.dns):/home/ec2-user/cnv-project/
