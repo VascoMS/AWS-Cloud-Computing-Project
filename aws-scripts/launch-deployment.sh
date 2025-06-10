@@ -24,7 +24,7 @@ aws ec2 create-launch-template \
   --launch-template-name CNV-LaunchTemplate \
   --version-description "v1" \
   --launch-template-data "{
-    \"ImageId\": \"$(cat image.id)\",
+    \"ImageId\": \"$(cat vm-image.id)\",
     \"InstanceType\": \"t2.micro\",
     \"SecurityGroupIds\": [\"$AWS_SECURITY_GROUP\"],
     \"KeyName\": \"$AWS_KEYPAIR_NAME\",

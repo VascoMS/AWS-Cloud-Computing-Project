@@ -3,7 +3,7 @@
 source config.sh
 
 # Read image ID from file
-IMAGE_ID=$(cat image.id)
+IMAGE_ID=$(cat vm-image.id)
 
 # Get the snapshot ID associated with the image
 SNAPSHOT_ID=$(aws ec2 describe-images \
