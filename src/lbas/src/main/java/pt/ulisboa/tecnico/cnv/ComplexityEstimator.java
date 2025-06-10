@@ -51,7 +51,7 @@ public class ComplexityEstimator {
             return Math.round(complexity * FIFTEEN_PUZZLE_SCALE_WEIGHT);
         else if (game.equals("GameOfLife"))
             return Math.round(complexity * GAME_OF_LIFE_SCALE_WEIGHT);
-        return complexity;
+        return complexity < LoadBalancer.VM_CAPACITY ? complexity : LoadBalancer.VM_CAPACITY;
     }
 
     private Long fetchFromStorage(String game, Map<String, String> params) {
