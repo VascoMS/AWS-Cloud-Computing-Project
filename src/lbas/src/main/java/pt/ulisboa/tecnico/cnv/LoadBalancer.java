@@ -14,7 +14,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 @Getter
 public class LoadBalancer {
-    public static final long VM_CAPACITY = 204890767L; // 10 seconds on capture the flag complexity scale
+    public static final long VM_CAPACITY = 210955768L; //204890767L; // 10 seconds on capture the flag complexity scale
     public static final long LAMBDA_THRESHOLD = 1000000L; // 0.27 seconds on the capture the flag complexity scale
     public static final double SPREAD_THRESHOLD = 0.85;
     public static final double PACK_THRESHOLD = 0.25;
@@ -34,7 +34,7 @@ public class LoadBalancer {
     public LoadBalancer() throws InterruptedException {
         this.complexityEstimator = new ComplexityEstimator();
         this.lambdaInvoker = new LambdaInvoker();
-        this.queueProcessor = Executors.newScheduledThreadPool(2);
+        this.queueProcessor = Executors.newScheduledThreadPool(1);
         this.metrics = new LoadBalancerMetrics();
         this.healthChecker = new HealthChecker(workers);
         this.clearingGlobal = new AtomicBoolean(false);
@@ -55,6 +55,12 @@ public class LoadBalancer {
         return workers.values().stream().min(Comparator.comparing(Worker::getCurrentLoad)).get().getId();
     }
 
+    void printWorkerSummary(){
+        for(Worker worker : workers.values()){
+            System.out.println(worker);
+        }
+    }
+
     public CompletableFuture<WorkerResponse> tryAssignToBestCandidate(
             HttpExchange exchange, RequestAssigner.RequestContext requestContext, VmSelectionStrategy strategy) {
 
@@ -68,6 +74,7 @@ public class LoadBalancer {
         }
 
         if(requestComplexity < LAMBDA_THRESHOLD) {
+            System.out.println("Invoked lambda for complexity: " + requestComplexity);
             return lambdaInvoker.invokeLambda(exchange.getRequestURI());
         }
 
@@ -109,34 +116,38 @@ public class LoadBalancer {
     public void clearGlobal() {
         boolean isClearing = clearingGlobal.getAndSet(true);
         if (!isClearing && getGlobalQueueLength() > 0 ) {
-            QueuedRequest request = globalOverflowQueue.peek();
-            if (request != null) {
-                long requestComplexity = request.getEstimatedComplexity();
-                VmSelectionStrategy strategy = new SpreadingStrategy();
-                List<String> candidateVmIds = strategy.selectVms(workers, requestComplexity, calculateAverageLoad());
-                CompletableFuture<WorkerResponse> future = tryAssign(candidateVmIds, request.getExchange(), requestComplexity, request.isStoreMetrics());
-                if (future == null) {
-                    clearingGlobal.set(false);
-                    return;
-                }
-                future.whenComplete((response, throwable) -> {
-                    if (throwable != null) {
-                        request.getFuture().completeExceptionally(throwable);
-                    } else {
-                        request.getFuture().complete(response);
+            while(!globalOverflowQueue.isEmpty()) {
+                QueuedRequest request = globalOverflowQueue.peek();
+                if (request != null) {
+                    long requestComplexity = request.getEstimatedComplexity();
+                    VmSelectionStrategy strategy = new SpreadingStrategy();
+                    List<String> candidateVmIds = strategy.selectVms(workers, requestComplexity, calculateAverageLoad());
+                    CompletableFuture<WorkerResponse> future = tryAssign(candidateVmIds, request.getExchange(), requestComplexity, request.isStoreMetrics());
+                    if (future == null) {
+                        clearingGlobal.set(false);
+                        return;
                     }
-                });
-                globalOverflowQueue.poll();
+                    future.whenComplete((response, throwable) -> {
+                        if (throwable != null) {
+                            request.getFuture().completeExceptionally(throwable);
+                        } else {
+                            request.getFuture().complete(response);
+                        }
+                    });
+                    globalOverflowQueue.poll();
+                    System.out.println("Cleared request from global queue: " + request);
+                    System.out.println("Global queue size: " + globalOverflowQueue.size());
+                }
             }
-            clearingGlobal.set(false);
         }
+        clearingGlobal.set(false);
     }
 
     public CompletableFuture<WorkerResponse> queueRequest(HttpExchange exchange, long complexity, boolean storeMetrics) {
         QueuedRequest request = new QueuedRequest(exchange, complexity, storeMetrics);
         globalOverflowQueue.add(request);
         System.out.println("Queued request " + request);
-        if(globalOverflowQueue.size() > VM_CAPACITY / 4)
+        if(getQueuedComplexity() > VM_CAPACITY / 4)
             autoscalerNotifier.wakeUp();
         return request.getFuture();
     }
@@ -159,6 +170,7 @@ public class LoadBalancer {
 
     // Worker management methods
     public void addNewWorker(String workerId, String host, int port) {
+        System.out.println("Added new worker id = " + workerId);
         Worker worker = new Worker(workerId, host, port);
         workers.put(workerId, worker);
     }
@@ -186,6 +198,10 @@ public class LoadBalancer {
 
     public int getGlobalQueueLength() {
         return globalOverflowQueue.size();
+    }
+
+    public long getQueuedComplexity(){
+        return globalOverflowQueue.stream().mapToLong(QueuedRequest::getEstimatedComplexity).sum();
     }
 
     public int getNrActiveVms() {

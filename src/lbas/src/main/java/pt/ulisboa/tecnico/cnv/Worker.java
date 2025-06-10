@@ -10,6 +10,8 @@ public class Worker {
         AVAILABLE, DRAINING, UNHEALTHY
     }
 
+    private static final long BOOTUP_TIME = 20000;
+
     @Getter
     private final String host;
     @Getter
@@ -21,16 +23,20 @@ public class Worker {
     private volatile Status status = Status.AVAILABLE;
     @Getter
     private CompletableFuture<Void> terminateFuture;
+    private final long creationTime;
 
     public Worker(String id, String host, int port) {
         this.id = id;
         this.host = host;
         this.port = port;
+        this.creationTime = System.currentTimeMillis();
     }
 
     public long getCurrentLoad() { return currentLoad.get(); }
     public boolean isDraining() { return status == Status.DRAINING; }
-    public boolean isAvailable() { return status == Status.AVAILABLE; }
+    public boolean isAvailable() {
+        return status == Status.AVAILABLE && System.currentTimeMillis() - creationTime > BOOTUP_TIME;
+    }
     public boolean isUnhealthy() { return status == Status.UNHEALTHY; }
 
     public CompletableFuture<Void> setDraining() {
@@ -66,5 +72,16 @@ public class Worker {
                 return true;
             }
         }
+    }
+
+    @Override
+    public String toString() {
+        return "Worker{" +
+                "host='" + host + '\'' +
+                ", port=" + port +
+                ", id='" + id + '\'' +
+                ", currentLoad=" + currentLoad +
+                ", status=" + status +
+                '}';
     }
 }

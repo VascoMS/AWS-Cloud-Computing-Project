@@ -70,6 +70,7 @@ public class RequestAssigner implements HttpHandler {
 
     private WorkerResponse processRequest(HttpExchange exchange, RequestContext context)
             throws Exception {
+        loadBalancer.printWorkerSummary();
         for(int i = 0; i < MAX_RETRIES; i++) {
             VmSelectionStrategy strategy = selectStrategy(context);
             CompletableFuture<WorkerResponse> responseFuture = loadBalancer.tryAssignToBestCandidate(exchange, context, strategy);

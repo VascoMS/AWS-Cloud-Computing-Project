@@ -27,21 +27,14 @@ import java.util.concurrent.*;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.io.IOException;
-
-
 
 public class AutoScaler implements Runnable, AutoscalerNotifier{
-    private static final double SCALE_OUT_CPU_THRESHOLD = 0.85;
-    private static final double SCALE_IN_CPU_THRESHOLD = 0.25;
+    private static final double SCALE_OUT_CPU_THRESHOLD = 85;
+    private static final double SCALE_IN_CPU_THRESHOLD = 25;
     private static final int MIN_WORKERS = 1;
     private static final int MAX_WORKERS = 5;
     private static final String AWS_REGION = "us-east-1";
     private final String amiId;
-    private static final String AWS_KEY_NAME = "mykeypair";
-    private static final String AWS_SEC_GROUP_ID = "sg-bacf59c2";
     private static final long OBS_TIME = 1000 * 60 * 5;
     private static final long POLL_INTERVAL_MS = 1000 * 60;
     private static final long SCALING_TIMEOUT = 1000 * 60 * 5;
@@ -55,6 +48,7 @@ public class AutoScaler implements Runnable, AutoscalerNotifier{
     private final Condition condition = lock.newCondition();
     private long latestScalingTimestamp;
     private final ScheduledExecutorService scheduler;
+    private Thread autoscalerThread;
 
     public AutoScaler(LoadBalancer loadBalancer, String amiId) {
         this.loadBalancer = loadBalancer;
@@ -64,8 +58,19 @@ public class AutoScaler implements Runnable, AutoscalerNotifier{
         this.scheduler = Executors.newScheduledThreadPool(1);
         this.latestScalingTimestamp = System.currentTimeMillis();
         // Create first worker here if needed
-        initializeDefaultWorkers();
+        this.scaleOut();
     }
+
+
+    public void start() {
+        if (autoscalerThread == null || !autoscalerThread.isAlive()) {
+            autoscalerThread = new Thread(this, "AutoScaler-Thread");
+            autoscalerThread.setDaemon(false); // Make sure it's not a daemon thread
+            autoscalerThread.start();
+            System.out.println("AutoScaler thread started: " + autoscalerThread.getName());
+        }
+    }
+
 
     @Override
     public void run() {
@@ -77,7 +82,7 @@ public class AutoScaler implements Runnable, AutoscalerNotifier{
             try {
                 long waitTime = POLL_INTERVAL_MS - elapsed;
                 if (waitTime > 0) {
-                    condition.wait(waitTime);
+                    condition.await(waitTime, TimeUnit.MILLISECONDS);
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -120,6 +125,7 @@ public class AutoScaler implements Runnable, AutoscalerNotifier{
         if (new Date().getTime() - latestScalingTimestamp < SCALING_TIMEOUT) {
             return;
         }
+        System.out.println("Avg cpu usage: " + avgCpuUsage + " queue size: " + globalQueueLength);
         if (avgCpuUsage > SCALE_OUT_CPU_THRESHOLD || globalQueueLength > 0) {
             if (nrActiveVms < MAX_WORKERS) {
                 scaleOut();
@@ -135,7 +141,6 @@ public class AutoScaler implements Runnable, AutoscalerNotifier{
     private double fetchAverageCpuUsage() {
         try {
             Set<Instance> instances = getInstances(ec2);
-            System.out.println("total instances = " + instances.size());
 
             Dimension instanceDimension = new Dimension();
             instanceDimension.setName("InstanceId");
@@ -158,17 +163,17 @@ public class AutoScaler implements Runnable, AutoscalerNotifier{
 
                     List<Double> dps = cloudWatch.getMetricStatistics(request).getDatapoints().stream()
                             .map(Datapoint::getAverage).toList();
-                    sum += EMACalculator.calculateEMA(dps); // Using the exponential moving average to give more importance to recent datapoints
-                }
-                else {
-                    System.out.println("instance id = " + iid + " state = " + state);
+                    Double ema = EMACalculator.calculateEMA(dps); // Using the exponential moving average to give more importance to recent datapoints
+                    if(ema != null){
+                        sum += ema;
+                    }
                 }
             }
 
             return sum / instances.size();
         } catch (AmazonServiceException ase) {
             System.out.println("Caught Exception: " + ase.getMessage());
-            System.out.println("Reponse Status Code: " + ase.getStatusCode());
+            System.out.println("Response Status Code: " + ase.getStatusCode());
             System.out.println("Error Code: " + ase.getErrorCode());
             System.out.println("Request ID: " + ase.getRequestId());
             return -1;
@@ -178,17 +183,24 @@ public class AutoScaler implements Runnable, AutoscalerNotifier{
     private void scaleOut() {
         RunInstancesRequest runInstancesRequest = new RunInstancesRequest();
         this.latestScalingTimestamp = System.currentTimeMillis();
+        System.out.println("Scaling out, current workers: " + loadBalancer.getWorkers().size());
+
         runInstancesRequest.withImageId(amiId)
                 .withInstanceType("t2.micro")
                 .withMinCount(1)
                 .withMaxCount(1)
-                .withKeyName(AWS_KEY_NAME)
-                .withSecurityGroupIds(AWS_SEC_GROUP_ID);
+                .withKeyName(System.getenv("AWS_KEYPAIR_NAME"))
+                .withSecurityGroupIds(System.getenv("AWS_SECURITY_GROUP"));
         RunInstancesResult runInstancesResult = ec2.runInstances(runInstancesRequest);
         String newInstanceId = runInstancesResult.getReservation().getInstances().get(0).getInstanceId();
 
-        waitForPublicIp(newInstanceId, Duration.ofSeconds(30))
-                .thenAccept(ip -> loadBalancer.addNewWorker(newInstanceId, ip, 8000));
+        waitForPublicIp(newInstanceId, Duration.ofSeconds(60))
+                .thenAccept(ip -> {
+                    loadBalancer.addNewWorker(newInstanceId, ip, 8000);
+                }).exceptionally(ex -> {
+                    System.err.println("Failed to get IP for instance " + newInstanceId + ": " + ex.getMessage());
+                    return null;
+                });;
 
     }
 
@@ -197,23 +209,35 @@ public class AutoScaler implements Runnable, AutoscalerNotifier{
         long deadline = System.currentTimeMillis() + timeout.toMillis();
 
         Runnable pollTask = () -> {
-            DescribeInstancesRequest describeRequest = new DescribeInstancesRequest()
-                    .withInstanceIds(instanceId);
+            try {
+                if (System.currentTimeMillis() >= deadline) {
+                    future.completeExceptionally(new TimeoutException("Timed out waiting for public IP"));
+                    return;
+                }
 
-            DescribeInstancesResult describeResult = ec2.describeInstances(describeRequest);
-            Instance instance = describeResult.getReservations().get(0).getInstances().get(0);
+                DescribeInstancesRequest describeRequest = new DescribeInstancesRequest()
+                        .withInstanceIds(instanceId);
 
-            if (instance != null && instance.getPublicIpAddress() != null) {
-                future.complete(instance.getPublicIpAddress());
-                scheduler.shutdown();
-            } else if (System.currentTimeMillis() >= deadline) {
-                future.completeExceptionally(new TimeoutException("Timed out waiting for public IP"));
-                scheduler.shutdown();
+                DescribeInstancesResult describeResult = ec2.describeInstances(describeRequest);
+
+                if (describeResult.getReservations().isEmpty() ||
+                        describeResult.getReservations().get(0).getInstances().isEmpty()) {
+                    future.completeExceptionally(new IllegalStateException("Instance not found: " + instanceId));
+                    return;
+                }
+
+                Instance instance = describeResult.getReservations().get(0).getInstances().get(0);
+
+                if (instance.getPublicIpAddress() != null) {
+                    future.complete(instance.getPublicIpAddress());
+                }
+            } catch (Exception e) {
+                future.completeExceptionally(e);
             }
         };
 
-        scheduler.scheduleAtFixedRate(pollTask, 0, 2, TimeUnit.SECONDS);
-        return future;
+        ScheduledFuture<?> scheduledFuture = scheduler.scheduleAtFixedRate(pollTask, 0, 2, TimeUnit.SECONDS);
+        return future.whenComplete((result, throwable) -> scheduledFuture.cancel(true));
     }
 
 

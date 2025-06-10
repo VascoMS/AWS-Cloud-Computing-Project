@@ -19,4 +19,13 @@ public class QueuedRequest {
         this.storeMetrics = storeMetrics;
     }
 
+    @Override
+    public String toString() {
+        return "QueuedRequest{" +
+                "exchange=" + exchange +
+                ", estimatedComplexity=" + estimatedComplexity +
+                ", storeMetrics=" + storeMetrics +
+                ", future=" + future +
+                '}';
+    }
 }

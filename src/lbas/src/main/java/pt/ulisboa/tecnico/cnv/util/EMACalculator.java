@@ -1,10 +1,12 @@
 package pt.ulisboa.tecnico.cnv.util;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class EMACalculator {
     public static Double calculateEMA(List<Double> datapoints) {
+        if(datapoints.isEmpty()) {
+            return null;
+        }
         double ema = datapoints.get(0);
         double alpha = 2.0 / (datapoints.size() + 1);
 

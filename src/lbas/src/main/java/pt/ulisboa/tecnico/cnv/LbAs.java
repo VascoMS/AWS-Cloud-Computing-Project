@@ -8,8 +8,6 @@ import java.util.concurrent.Executors;
 
 public class LbAs {
 
-    private static final ExecutorService autoscalerExecutor = Executors.newSingleThreadExecutor();
-
     public static void main(String[] args) throws Exception {
         HttpServer server = HttpServer.create(new InetSocketAddress(8000), 0);
         server.setExecutor(java.util.concurrent.Executors.newCachedThreadPool());
@@ -22,8 +20,7 @@ public class LbAs {
             return;
         }
         AutoScaler autoScaler = new AutoScaler(loadBalancer, amiId);
-        autoscalerExecutor.submit(autoScaler);
-
+        autoScaler.start();
         loadBalancer.setAutoscalerNotifier(autoScaler);
 
         server.createContext("/", loadBalancer.getNewRequestAssigner());
