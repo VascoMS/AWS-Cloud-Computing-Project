@@ -26,7 +26,7 @@ public class LambdaInvoker {
     }
 
     public CompletableFuture<WorkerResponse> invokeLambda(URI uri) {
-        String game = uri.getPath().split("/")[0];
+        String game = uri.getPath().split("/")[1];
         Map<String, String> params = queryToMap(uri.getRawQuery());
 
         return CompletableFuture.supplyAsync(() -> {
@@ -48,7 +48,8 @@ public class LambdaInvoker {
 
                 return new WorkerResponse(statusCode, payload);
             } catch (Exception e) {
-                throw new RuntimeException("Error invoking Lambda function: " + game, e);
+                System.err.println("Error invoking Lambda: " + e.getMessage());
+                return null;
             }
         });
     }
