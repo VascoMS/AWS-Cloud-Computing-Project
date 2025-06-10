@@ -1,6 +1,9 @@
 package pt.ulisboa.tecnico.cnv;
 
 import pt.ulisboa.tecnico.cnv.storage.StorageUtil;
+import pt.ulisboa.tecnico.cnv.util.CaptureTheFlagEstimator;
+import pt.ulisboa.tecnico.cnv.util.FifteenPuzzleEstimator;
+import pt.ulisboa.tecnico.cnv.util.GameOfLifeEstimator;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -61,56 +64,11 @@ public class ComplexityEstimator {
     }
 
     private Long approximateComplexityFromParams(String game, Map<String, String> params) {
-        switch (game.toLowerCase()) {
-            case "fifteenpuzzle": {
-                double num_shuffles = Double.parseDouble(params.get("shuffles"));
-                double num_size = Double.parseDouble(params.get("size"));
-
-                double ninsts = -10098930362.82 + 119260738.56 * num_shuffles + 0 * num_size;
-                double nmethod = -14828529.82 + 175108.42 * num_shuffles + 0 * num_size;
-                double complexity = (ninsts / 682.3358) * 3.3 + nmethod;
-                return Math.round(complexity);
-            }
-
-            case "capturetheflag": {
-                double gridSize = Double.parseDouble(params.get("gridSize"));
-                double numBlueAgents = Double.parseDouble(params.get("numBlueAgents"));
-                double numRedAgents = Double.parseDouble(params.get("numRedAgents"));
-                String flagPlacement = params.get("flagPlacementType");
-
-                int cat_flagPlacementType_B = flagPlacement.equals("B") ? 1 : 0;
-                int cat_flagPlacementType_C = flagPlacement.equals("C") ? 1 : 0;
-
-                double ninsts = -188844810.08
-                        + 8917467.24 * gridSize
-                        + 8917467.24 * numBlueAgents
-                        + 8917467.24 * numRedAgents
-                        - 269574378.20 * cat_flagPlacementType_B
-                        - 142751327.33 * cat_flagPlacementType_C;
-
-                double nmethod = -3322991.36
-                        + 156958.27 * gridSize
-                        + 156958.27 * numBlueAgents
-                        + 156958.27 * numRedAgents
-                        - 4748919.53 * cat_flagPlacementType_B
-                        - 2518286.13 * cat_flagPlacementType_C;
-
-                double complexity = (ninsts / 56.9413) * 2.72 + nmethod;
-                return Math.round(complexity);
-            }
-
-            case "gameoflife": {
-                double iterations = Double.parseDouble(params.get("iterations"));
-
-                double ninsts = 3870 + 54698 * iterations;
-                double nmethod = 11.00 + 101.00 * iterations;
-                double complexity = (ninsts / 541.5605) * 7.85 + nmethod;
-                return Math.round(complexity);
-            }
-
-            default:
-                throw new IllegalArgumentException("Unsupported game: " + game);
-        }
+        return switch (game.toLowerCase()) {
+            case "fifteenpuzzle" -> FifteenPuzzleEstimator.estimateComplexity(params);
+            case "capturetheflag" -> CaptureTheFlagEstimator.estimateComplexity(params);
+            case "gameoflife" -> GameOfLifeEstimator.estimateComplexity(params);
+            default -> throw new IllegalArgumentException("Unsupported game: " + game);
+        };
     }
-
 }
