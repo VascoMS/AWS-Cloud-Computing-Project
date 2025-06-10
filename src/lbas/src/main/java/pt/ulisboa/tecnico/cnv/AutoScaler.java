@@ -185,7 +185,7 @@ public class AutoScaler implements Runnable, AutoscalerNotifier{
                 .withKeyName(AWS_KEY_NAME)
                 .withSecurityGroupIds(AWS_SEC_GROUP_ID);
         RunInstancesResult runInstancesResult = ec2.runInstances(runInstancesRequest);
-        String newInstanceId = runInstancesResult.getReservation().getInstances().getFirst().getInstanceId();
+        String newInstanceId = runInstancesResult.getReservation().getInstances().get(0).getInstanceId();
 
         waitForPublicIp(newInstanceId, Duration.ofSeconds(30))
                 .thenAccept(ip -> loadBalancer.addNewWorker(newInstanceId, ip, 8000));
@@ -201,7 +201,7 @@ public class AutoScaler implements Runnable, AutoscalerNotifier{
                     .withInstanceIds(instanceId);
 
             DescribeInstancesResult describeResult = ec2.describeInstances(describeRequest);
-            Instance instance = describeResult.getReservations().getFirst().getInstances().getFirst();
+            Instance instance = describeResult.getReservations().get(0).getInstances().get(0);
 
             if (instance != null && instance.getPublicIpAddress() != null) {
                 future.complete(instance.getPublicIpAddress());

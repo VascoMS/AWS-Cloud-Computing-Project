@@ -5,7 +5,7 @@ import java.util.List;
 
 public class EMACalculator {
     public static Double calculateEMA(List<Double> datapoints) {
-        double ema = datapoints.getFirst();
+        double ema = datapoints.get(0);
         double alpha = 2.0 / (datapoints.size() + 1);
 
         // Apply EMA formula across the rest
