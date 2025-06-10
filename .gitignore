@@ -5,3 +5,4 @@
 **/*.dns
 **/config.sh
 **/.DS_Store
+scripts/charts/

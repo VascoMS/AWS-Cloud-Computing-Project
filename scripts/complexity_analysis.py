@@ -21,7 +21,7 @@ def send_request(game, params):
             return None, elapsed_time
         requestStatistics = response.json().get("requestStatistics")
         print(f"Params: {params}, requestStatistics: {requestStatistics}, Elapsed Time: {elapsed_time:.4f} seconds")
-        return requestStatistics, elapsed_time
+        return requestStatistics, abs(elapsed_time)
     except requests.exceptions.RequestException as e:
         print("Error sending request:", e)
 
@@ -30,22 +30,20 @@ def analyze_complexity(game, params_list):
     for params in params_list:
         requestStatistics, elapsed_time = send_request(game, params)
         if requestStatistics is not None:
-            result = {
+            results.append({
                 "complexity": requestStatistics.get("complexity", 0),
                 "nblocks": requestStatistics.get("nblocks", 0),
                 "nmethod": requestStatistics.get("nmethod", 0),
                 "ninsts": requestStatistics.get("ninsts", 0),
                 "ndataWrites": requestStatistics.get("ndataWrites", 0),
                 "ndataReads": requestStatistics.get("ndataReads", 0),
-                "elapsed_time": elapsed_time,
-            }
-            results.append(result | params)  
-            
+                "elapsed_time": elapsed_time
+            })
         else:
             print(f"Failed to get complexity for params: {params}")
     return pd.DataFrame(results)
 
-def plot_results(df, game_name, relevant_param):
+def plot_results(df, game_name):
     """
     Creates and saves a separate plot for each metric vs elapsed time.
     Includes a linear regression line and R² value.
@@ -59,7 +57,7 @@ def plot_results(df, game_name, relevant_param):
     r2_results = {}
 
     for metric in metrics:
-        x = df_sorted[relevant_param].values
+        x = df_sorted['elapsed_time'].values
         y = df_sorted[metric].values
 
         # Linear regression
@@ -72,9 +70,9 @@ def plot_results(df, game_name, relevant_param):
         plt.figure(figsize=(10, 6))
         plt.plot(x, y, 'o', alpha=0.7, label=f'{metric} (data)')
         plt.plot(x, y_pred, 'r-', label=f'Linear Fit: y={slope:.2f}x + {intercept:.2f}\nR² = {r_squared:.4f}')
-        plt.xlabel(f"{relevant_param} ({game_name})")
+        plt.xlabel('Elapsed Time (s)')
         plt.ylabel(metric)
-        plt.title(f'{metric} vs {relevant_param} - {game_name}')
+        plt.title(f'{metric} vs Elapsed Time - {game_name}')
         plt.grid(True, alpha=0.3)
         plt.legend()
         plt.tight_layout()
@@ -111,36 +109,34 @@ def save_r2_table_image(r2_data, output_path="charts/r2_comparison_table.png"):
 
 def main():
     capturetheflag_params = [
-        {"gridSize": 30, "numBlueAgents": blue, "numRedAgents": red, "flagPlacementType": "A"}
-        for blue, red in zip(range(5, 30), range(5, 30))
+        {"gridSize": gridSize, "numBlueAgents": blue, "numRedAgents": red, "flagPlacementType": flagtype}
+        for gridSize, blue, red in zip(range(10,40), range(5, 35), range(5, 35))
+        for flagtype in ["A", "B", "C"]
     ]
     fifteenpuzzle_params = [
-        {"size": 10, "shuffles": shuffles}
-        for shuffles in range(80, 106, 2)
+        {"size": size, "shuffles": shuffles}
+        for shuffles in range(70, 76, 1)
+        for size in range(10, 15, 1)
     ]
     gameoflife_params = [
         {"mapFilename": "glider-10-10.json", "iterations": iterations}
         for iterations in range(1000, 20000, 1000)
     ]
     params_list = {
-        "capturetheflag": capturetheflag_params,
+        #"capturetheflag": capturetheflag_params,
         "fifteenpuzzle": fifteenpuzzle_params,
         "gameoflife": gameoflife_params
     }
 
     all_r2 = {}
 
-    relevant_param = {"capturetheflag": "numBlueAgents", 
-                      "fifteenpuzzle": "shuffles", 
-                      "gameoflife": "iterations"
-                      }
     for game, params in params_list.items():
         df = analyze_complexity(game, params)
-        r2_results = plot_results(df, game, relevant_param[game])
-        all_r2[game] = r2_results
+        # r2_results = plot_results(df, game)
+        # all_r2[game] = r2_results
 
     # Save R² table as image
-    save_r2_table_image(all_r2)
+    # save_r2_table_image(all_r2)
 
 if __name__ == "__main__":
     main()

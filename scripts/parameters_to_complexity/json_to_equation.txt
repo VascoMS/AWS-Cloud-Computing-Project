@@ -1,0 +1,14 @@
+=============Capture The Flag===================
+
+scaled_gridsize = ( grid_size - scaler_params{mean[0]} ) *  scaler_params{scale[0]}
+
+scaled_numBlueAgents = ( numBlueAgents - scaler_params{mean[1]} ) *  scaler_params{scale[1]}
+
+scaled_numRedAgents = ( numRedAgents - scaler_params{mean[2]} ) *  scaler_params{scale[2]}
+
+
+since "is_log_transformed" = true:
+
+log(complexity) = intercept + coefficients[x] * feature_names[x]
+
+complexity = exp(log(complexity))
