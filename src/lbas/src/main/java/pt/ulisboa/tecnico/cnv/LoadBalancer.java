@@ -7,6 +7,7 @@ import pt.ulisboa.tecnico.cnv.storage.StorageUtil;
 import pt.ulisboa.tecnico.cnv.strategies.SpreadingStrategy;
 import pt.ulisboa.tecnico.cnv.strategies.VmSelectionStrategy;
 
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -14,7 +15,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 @Getter
 public class LoadBalancer {
-    public static final long VM_CAPACITY = 210955769L; //204890767L; // 10 seconds on capture the flag complexity scale
+    public static final long VM_CAPACITY = 188632527L; //204890767L; // 10 seconds on capture the flag complexity scale
     public static final long LAMBDA_THRESHOLD = 1000000L; // 0.27 seconds on the capture the flag complexity scale
     public static final double SPREAD_THRESHOLD = 0.85;
     public static final double PACK_THRESHOLD = 0.25;
@@ -173,27 +174,32 @@ public class LoadBalancer {
         System.out.println("Added new worker id = " + workerId);
         Worker worker = new Worker(workerId, host, port);
         workers.put(workerId, worker);
+        healthChecker.startFastHealthChecking(workerId, Duration.ofSeconds(60)).whenComplete((healthy, throwable) -> {
+            if (throwable == null) {
+                if (healthy) {
+                    clearGlobal();
+                } else {
+                    System.out.println("New worker " + workerId + " unhealthy after 60 seconds");
+                }
+            } else {
+                System.err.println("Error when fast checking worker " + workerId + ": " + throwable.getMessage());
+            }
+        });
     }
 
     public CompletableFuture<Void> initiateWorkerRemoval(String workerId) {
         Worker worker = workers.get(workerId);
         if (worker != null) {
-            return worker.setDraining();
+            CompletableFuture<Void> terminationFuture = worker.setDraining();
+            if(worker.getCurrentLoad() == 0)
+                terminationFuture.complete(null); // Complete termination future immediately if worker has no requests
+            return terminationFuture;
         }
         return null;
     }
 
-    public boolean finalizeWorkerRemoval(String workerId) {
-        Worker worker = workers.get(workerId);
-
-        long load = worker.getCurrentLoad();
-        if (load > 0) {
-            return false;
-        }
-        else{
-            workers.remove(workerId);
-            return true;
-        }
+    public void finalizeWorkerRemoval(String workerId) {
+        workers.remove(workerId);
     }
 
     public int getGlobalQueueLength() {

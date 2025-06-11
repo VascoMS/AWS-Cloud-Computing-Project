@@ -36,8 +36,7 @@ public class AutoScaler implements Runnable, AutoscalerNotifier{
     private static final String AWS_REGION = "us-east-1";
     private final String amiId;
     private static final long OBS_TIME = 1000 * 60 * 5;
-    private static final long POLL_INTERVAL_MS = 1000 * 60;
-    private static final long SCALING_TIMEOUT = 1000 * 60 * 5;
+    private static final long SCALING_TIMEOUT = 1000 * 60 * 2;
 
 
     private final LoadBalancer loadBalancer;
@@ -80,7 +79,7 @@ public class AutoScaler implements Runnable, AutoscalerNotifier{
             long elapsed = System.currentTimeMillis() - start;
             lock.lock();
             try {
-                long waitTime = POLL_INTERVAL_MS - elapsed;
+                long waitTime = SCALING_TIMEOUT - elapsed;
                 if (waitTime > 0) {
                     condition.await(waitTime, TimeUnit.MILLISECONDS);
                 }
@@ -104,11 +103,6 @@ public class AutoScaler implements Runnable, AutoscalerNotifier{
         }
     }
 
-    public void initializeDefaultWorkers() {
-        for (int i = 0; i < 3; i++) {
-            this.loadBalancer.addNewWorker("w" + i, "localhost", 8000 + i + 1);
-        }
-    }
     private Set<Instance> getInstances(AmazonEC2 ec2) {
         Set<Instance> instances = new HashSet<>();
         for (Reservation reservation : ec2.describeInstances().getReservations()) {
@@ -122,6 +116,7 @@ public class AutoScaler implements Runnable, AutoscalerNotifier{
         double avgCpuUsage = fetchAverageCpuUsage();
         int globalQueueLength = loadBalancer.getGlobalQueueLength();
         int nrActiveVms = loadBalancer.getNrActiveVms();
+        long avgLoad = loadBalancer.calculateAverageLoad();
         if (new Date().getTime() - latestScalingTimestamp < SCALING_TIMEOUT) {
             return;
         }
@@ -130,7 +125,8 @@ public class AutoScaler implements Runnable, AutoscalerNotifier{
             if (nrActiveVms < MAX_WORKERS) {
                 scaleOut();
             }
-        } else if (avgCpuUsage < SCALE_IN_CPU_THRESHOLD) {
+        } else if (avgCpuUsage < SCALE_IN_CPU_THRESHOLD &&
+                avgLoad < SCALE_IN_CPU_THRESHOLD / 100 * LoadBalancer.VM_CAPACITY) {
             if (nrActiveVms - 1 >= MIN_WORKERS) {
                 scaleIn();
             }
@@ -163,7 +159,7 @@ public class AutoScaler implements Runnable, AutoscalerNotifier{
 
                     List<Double> dps = cloudWatch.getMetricStatistics(request).getDatapoints().stream()
                             .map(Datapoint::getAverage).toList();
-                    Double ema = EMACalculator.calculateEMA(dps); // Using the exponential moving average to give more importance to recent datapoints
+                    Double ema = EMACalculator.calculateAverage(dps); // Using the exponential moving average to give more importance to recent datapoints
                     if(ema != null){
                         sum += ema;
                     }
@@ -195,12 +191,10 @@ public class AutoScaler implements Runnable, AutoscalerNotifier{
         String newInstanceId = runInstancesResult.getReservation().getInstances().get(0).getInstanceId();
 
         waitForPublicIp(newInstanceId, Duration.ofSeconds(60))
-                .thenAccept(ip -> {
-                    loadBalancer.addNewWorker(newInstanceId, ip, 8000);
-                }).exceptionally(ex -> {
+                .thenAccept(ip -> loadBalancer.addNewWorker(newInstanceId, ip, 8000)).exceptionally(ex -> {
                     System.err.println("Failed to get IP for instance " + newInstanceId + ": " + ex.getMessage());
                     return null;
-                });;
+                });
 
     }
 
@@ -232,7 +226,7 @@ public class AutoScaler implements Runnable, AutoscalerNotifier{
                     future.complete(instance.getPublicIpAddress());
                 }
             } catch (Exception e) {
-                future.completeExceptionally(e);
+                System.err.println("Exception thrown when waiting for public IP for: " + instanceId + " | error: " +  e.getMessage());
             }
         };
 

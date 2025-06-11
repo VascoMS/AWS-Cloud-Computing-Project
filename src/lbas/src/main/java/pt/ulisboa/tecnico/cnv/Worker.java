@@ -20,7 +20,7 @@ public class Worker {
     @Getter
     private final String id;
     private final AtomicLong currentLoad = new AtomicLong(0);
-    private volatile Status status = Status.AVAILABLE;
+    private volatile Status status = Status.UNHEALTHY;
     @Getter
     private CompletableFuture<Void> terminateFuture;
     private final long creationTime;

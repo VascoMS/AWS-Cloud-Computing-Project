@@ -90,15 +90,13 @@ public class RequestAssigner implements HttpHandler {
         if (shouldUseSpreadingMode(context)) {
             System.out.println("Spreading mode");
             return new SpreadingStrategy();
-            //return handleSpreadingMode(exchange, context.complexity, context.storeMetrics);
         } else if (shouldUsePackingMode(context)) {
             System.out.println("Packing mode");
             return new PackingStrategy();
-            //return handlePackingMode(exchange, context.complexity, context.storeMetrics);
         } else {
             System.out.println("Balanced mode");
             return new BalancedStrategy();
-            //return handleBalancedMode(exchange, context.complexity, context.storeMetrics);
+
         }
     }
 
