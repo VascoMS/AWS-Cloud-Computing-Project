@@ -17,8 +17,8 @@ import java.util.concurrent.atomic.AtomicLong;
 public class LoadBalancer {
     public static final long VM_CAPACITY = 188632527L; //204890767L; // 10 seconds on capture the flag complexity scale
     public static final long LAMBDA_THRESHOLD = 1000000L; // 0.27 seconds on the capture the flag complexity scale
-    public static final double SPREAD_THRESHOLD = 0.85;
-    public static final double PACK_THRESHOLD = 0.25;
+    public static final double SPREAD_THRESHOLD = 0.7;
+    public static final double PACK_THRESHOLD = 0.3;
 
     private final ConcurrentMap<String, Worker> workers = new ConcurrentHashMap<>();
     final Queue<QueuedRequest> globalOverflowQueue = new ConcurrentLinkedQueue<>();
