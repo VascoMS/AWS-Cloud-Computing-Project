@@ -17,5 +17,16 @@ public class EMACalculator {
 
         return ema;
     }
+
+    public static Double calculateAverage(List<Double> datapoints) {
+        if(datapoints.isEmpty()) {
+            return null;
+        }
+        double sum = 0;
+        for (Double d : datapoints) {
+            sum += d;
+        }
+        return sum / datapoints.size();
+    }
 }
 
