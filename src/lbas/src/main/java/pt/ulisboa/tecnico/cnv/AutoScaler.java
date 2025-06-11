@@ -159,7 +159,7 @@ public class AutoScaler implements Runnable, AutoscalerNotifier{
 
                     List<Double> dps = cloudWatch.getMetricStatistics(request).getDatapoints().stream()
                             .map(Datapoint::getAverage).toList();
-                    Double ema = EMACalculator.calculateAverage(dps); // Using the exponential moving average to give more importance to recent datapoints
+                    Double ema = EMACalculator.calculateEMA(dps); // Using the exponential moving average to give more importance to recent datapoints
                     if(ema != null){
                         sum += ema;
                     }
