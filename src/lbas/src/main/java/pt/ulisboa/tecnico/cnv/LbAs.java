@@ -27,6 +27,6 @@ public class LbAs {
         server.createContext("/", loadBalancer.getNewRequestAssigner());
 
         server.start();
-        System.out.println("Web server started on port 8000!");
+        System.out.println("Web server started on port 80!");
     }
 }

@@ -23,6 +23,8 @@ public class HttpForwarder {
         try {
             int statusCode = response.statusCode();
 
+            exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+
             String responseBody = response.body();
 
             exchange.sendResponseHeaders(statusCode, responseBody.length());
