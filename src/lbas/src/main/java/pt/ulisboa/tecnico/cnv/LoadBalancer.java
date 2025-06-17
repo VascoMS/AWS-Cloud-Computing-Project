@@ -102,7 +102,7 @@ public class LoadBalancer {
                     if(worker.isDraining() && worker.getCurrentLoad() == 0) {
                         worker.completeTerminate();
                     }
-                    if (throwable != null) {
+                    if (throwable != null || response == null) {
                         worker.setUnhealthy();
                     }
                 });

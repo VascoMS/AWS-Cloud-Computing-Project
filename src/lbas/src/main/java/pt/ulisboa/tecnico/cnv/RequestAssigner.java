@@ -7,6 +7,7 @@ import pt.ulisboa.tecnico.cnv.strategies.PackingStrategy;
 import pt.ulisboa.tecnico.cnv.strategies.SpreadingStrategy;
 import pt.ulisboa.tecnico.cnv.strategies.VmSelectionStrategy;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -34,9 +35,16 @@ public class RequestAssigner implements HttpHandler {
     ) {}
 
     @Override
-    public void handle(HttpExchange exchange) {
+    public void handle(HttpExchange exchange) throws IOException {
         loadBalancer.getMetrics().incrementTotalRequests();
         System.out.println("Handling " + exchange.getRequestURI());
+
+        if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+            exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, OPTIONS");
+            exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type,Authorization");
+            exchange.sendResponseHeaders(204, -1);
+            return;
+        }
 
         long startTime = System.currentTimeMillis();
         try {
@@ -81,6 +89,7 @@ public class RequestAssigner implements HttpHandler {
                 }
             }
             Thread.sleep(RETRY_DELAY_MILLIS);
+            System.out.println("Retrying request...");
             context = buildRequestContext(exchange);
         }
         return null;
